@@ -1,0 +1,13 @@
+File Name,Planet Name,Distance,Mass,Accretion,Feels Disk,Feels Others
+Kepler38.cfg,Kepler38c,1.49E+13,6.8655E+29,0.0,YES,YES
+Kepler38.cfg,Kepler38a,1607040.0,1.8877E+33,0.0,NO,YES
+Kepler38.cfg,Kepler38b,0.1032,4.9565E+32,0.0,NO,YES
+MobileJupiter.cfg,Jupiter,1.0,0.001,0.0,YES,NO
+SuperEarth.cfg,SuperEarth,1.0,0.00001,0.0,NO,NO
+jupiter.cfg,Jupiter,1.0,0.001,0.0,NO,NO
+saturn.cfg,Saturn,1.0,0.0003,0.0,NO,NO
+MobileEarth.cfg,Earth,1.0,0.000003,0.0,YES,NO
+MobileSaturn.cfg,Saturn,1.0,0.0003,0.0,YES,NO
+earth.cfg,Earth,1.0,0.000003,0.0,NO,NO
+neptune.cfg,Neptune,1.0,0.0001,0.0,NO,NO
+zero.cfg,ZeroMassPlanet,1.0,0.000,0.0,NO,NO
