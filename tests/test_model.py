@@ -122,7 +122,7 @@ class TestModel:
         )
         s = model.forward_apply(model.params, inputs)
 
-        scaling_factors = {"scaling_factors": jnp.array([10.0])}
+        scaling_factors = {"scaling_factors": jnp.array(10.0)}
         s2_fn = jaxphyinf.model.outputs_scaling_transform(model.forward_apply)[0]
         s2 = s2_fn(model.params, scaling_factors, inputs)
 
@@ -157,7 +157,7 @@ class TestModel:
             u_net_layer_size=u_net_layer_size,
             y_net_layer_size=y_net_layer_size,
         )
-        scaling_factors = {"scaling_factors": jnp.array([10.0])}
+        scaling_factors = {"scaling_factors": jnp.array(10.0)}
         s_fn = jaxphyinf.model.outputs_scaling_transform(model.forward_apply)[0]
         s = s_fn(model.params, scaling_factors, inputs)
         ic_value = parameters["sigma0"] * inputs["y_net"][..., 0] ** (
