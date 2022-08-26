@@ -381,7 +381,7 @@ def get_transformed_s_fn(ic, s_fn):
     def new_s_fn(params, state, parameters, inputs):
         outputs = s_fn(params, state, inputs)
         y = inputs["y_net"]
-        s_initial = ic.func(parameters, y) if ic else jnp.zeros(outputs.shape[:-1])
+        s_initial = ic.func(parameters, y) if ic else jnp.zeros(outputs.shape)
 
         return s_initial + outputs
 

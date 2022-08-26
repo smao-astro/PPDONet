@@ -102,8 +102,11 @@ class TestDataConstraints:
         )
 
     @pytest.fixture
-    def ic(self):
-        return onet_disk2D.physics.initial_condition.PowerlawSigmaIC()
+    def ic(self, unknown):
+        if unknown == "sigma":
+            return onet_disk2D.physics.initial_condition.PowerlawSigmaIC()
+        else:
+            return None
 
     @pytest.fixture
     def s_fn(self, model, ic):
@@ -119,6 +122,8 @@ class TestDataConstraints:
 
     @pytest.fixture
     def weighted_data_constraints(self, s_fn, unknown, dataloader, ic):
+        if unknown == "log_sigma":
+            pytest.skip()
         return onet_disk2D.constraints.DataConstraints(
             s_pred_fn=s_fn,
             unknown=unknown,
@@ -139,7 +144,7 @@ class TestDataConstraints:
 
     def test_WeightedDataLoss(self, unknown, dataloader, s_fn, scaling_factors, model):
         if unknown == "log_sigma":
-            assert True
+            pytest.skip()
         else:
             ic = onet_disk2D.physics.initial_condition.PowerlawSigmaIC()
             loss = onet_disk2D.constraints.data_constraints.WeightedDataLoss(
@@ -154,7 +159,7 @@ class TestDataConstraints:
         self, unknown, dataloader, s_fn, scaling_factors, model
     ):
         if unknown == "log_sigma":
-            assert True
+            pytest.skip()
         else:
             ic = onet_disk2D.physics.initial_condition.PowerlawSigmaIC()
             loss = onet_disk2D.constraints.data_constraints.WeightedDataLoss(
@@ -175,7 +180,7 @@ class TestDataConstraints:
         self, unknown, dataloader, s_fn, scaling_factors, model
     ):
         if unknown == "log_sigma":
-            assert True
+            pytest.skip()
         else:
             ic = onet_disk2D.physics.initial_condition.PowerlawSigmaIC()
             loss = onet_disk2D.constraints.data_constraints.WeightedDataLoss(
