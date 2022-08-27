@@ -151,6 +151,8 @@ class DataConstraints(ParametricConstraints):
         if not self.data_loss_weighting:
             loss = {"data_" + self.unknown: DataLoss(self.s_pred_fn)}
         elif self.data_loss_weighting in ["diff2", "mag"]:
+            if self.unknown == "log_sigma":
+                raise NotImplementedError
             loss = {
                 "data_"
                 + self.unknown: WeightedDataLoss(
