@@ -85,7 +85,7 @@ class JOB:
             y_net_output_transform=self.y_net_output_transform,
             **self.args,
         )
-        self.s_raw_and_a_fn = jaxphyinf.model.outputs_scaling_transform(
+        self.s_raw_and_a_fn = onet_disk2D.model.outputs_scaling_transform(
             self.model.forward_apply
         )[1]
         self.state = {"scaling_factors": jnp.array(self.args["scale_on_s"])}
@@ -199,7 +199,7 @@ class JOB:
         Returns:
             Callable: (params, scaling_factors, parameters, inputs)
         """
-        s_fn = jaxphyinf.model.outputs_scaling_transform(self.model.forward_apply)[0]
+        s_fn = onet_disk2D.model.outputs_scaling_transform(self.model.forward_apply)[0]
         # Callable: (params, state, inputs)
 
         if self.args["ic_shift"] == "ON":

@@ -271,7 +271,6 @@ class LossLogger(Callback):
         self.dump()
 
 
-# todo change to single output
 class RawOutputMagLogger(Callback):
     def __init__(self, unknown, file_name, period=10):
         super(RawOutputMagLogger, self).__init__()
@@ -294,11 +293,8 @@ class RawOutputMagLogger(Callback):
 
     def on_train_end(self):
         coords = {"i_steps": self.log["i_steps"]}
-        mag = jnp.vstack(self.log["mag"])
-        # todo be careful on the last dimension here
-        mag = {
-            self.unknown: (["i_steps"], mag[..., 0])
-        }
+        mag = jnp.stack(self.log["mag"])
+        mag = {self.unknown: (["i_steps"], mag)}
         mag = xr.Dataset(data_vars=mag, coords=coords)
         mag.to_netcdf(self.job.save_dir / (self.file_name + ".nc"))
 

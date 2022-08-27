@@ -3,6 +3,7 @@
     1.1 DeepONet model
     1.2 PI-DeepONet model
 """
+import jax
 import jax.numpy as jnp
 import jaxphyinf
 
@@ -27,6 +28,50 @@ def get_period_transform(r_min, r_max):
         )
 
     return transform
+
+
+def outputs_scaling_transform(f):
+    @jax.jit
+    def outputs_fn(*args):
+        """
+
+        Args:
+            *args: (params, {'scaling_factors'}, inputs),
+                or (params, state, scaling_factors, inputs)
+
+        Returns:
+
+        """
+        scaling_factors = args[-2]["scaling_factors"]
+        inputs = args[-1]
+
+        outputs = f(*args[:-2], inputs)
+        outputs = scaling_factors * outputs
+
+        return outputs
+
+    @jax.jit
+    def outputs_and_a_fn(*args):
+        """
+
+        Args:
+            *args: (params, scaling_factors, inputs),
+                or (params, state, scaling_factors, inputs)
+
+        Returns:
+
+        """
+        scaling_factors = args[-2]["scaling_factors"]
+        inputs = args[-1]
+
+        outputs = f(*args[:-2], inputs)
+        a = jnp.mean(jnp.abs(outputs))
+
+        outputs = scaling_factors * outputs
+
+        return outputs, a
+
+    return outputs_fn, outputs_and_a_fn
 
 
 def get_input_normalization(denominator):
