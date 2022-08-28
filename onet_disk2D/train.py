@@ -26,7 +26,11 @@ def get_parser():
 
     # model
     parser.add_argument("--parameter", type=list_of_str)
-    parser.add_argument("--unknown", default="log_sigma", choices=["sigma", "log_sigma", "v_r", "v_theta"])
+    parser.add_argument(
+        "--unknown",
+        default="log_sigma",
+        choices=["sigma", "log_sigma", "v_r", "v_theta"],
+    )
     parser.add_argument(
         "--Nnode",
         type=int,

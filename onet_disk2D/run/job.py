@@ -412,24 +412,11 @@ class JOB:
         print(f"{data_type}_{self.unknown_type}_l2= {l2_errors:.2g}")
         errors["l2"][self.unknown_type] = f"{l2_errors:.2g}"
 
-        truth_normal_scale = truth_normal_scale.reshape(data.shape)
-        predict_normal_scale = predict_normal_scale.reshape(data.shape)
-        normalized_error = normalized_error.reshape(data.shape)
-
-        squared_normalized_error = xr.DataArray(
-            normalized_error**2, coords=data.coords, dims=dims
-        )
-        mean_coordinate_error_to_file(
-            error=squared_normalized_error,
-            data_type=data_type,
-            unknown=self.unknown_type,
-            save_dir=save_dir,
-        )
-
-        truth_pred_error_to_file(
+        to_file(
             truth=truth_normal_scale,
             predict=predict_normal_scale,
             error=normalized_error,
+            shape=data.shape,
             coords=data.coords,
             data_type=data_type,
             unknown=self.unknown_type,
@@ -456,24 +443,11 @@ class JOB:
             print(f"{data_type}_{k}_mse= {mean_squared_errors:.2g}")
             errors["mse"][k] = f"{mean_squared_errors:.2g}"
 
-            truth_log_scale = truth_log_scale.reshape(data.shape)
-            predict_log_scale = predict_log_scale.reshape(data.shape)
-            error = error.reshape(data.shape)
-
-            squared_normalized_error = xr.DataArray(
-                error**2, coords=data.coords, dims=dims
-            )
-            mean_coordinate_error_to_file(
-                error=squared_normalized_error,
-                data_type=data_type,
-                unknown=k,
-                save_dir=save_dir,
-            )
-
-            truth_pred_error_to_file(
+            to_file(
                 truth=truth_log_scale,
                 predict=predict_log_scale,
                 error=error,
+                shape=data.shape,
                 coords=data.coords,
                 data_type=data_type,
                 unknown=k,
@@ -645,7 +619,7 @@ def truth_pred_error_to_file(
         None
     """
 
-    predict = xr.Dataset(
+    truth_pred_error = xr.Dataset(
         data_vars={
             "truth": (dims, truth),
             "pred": (dims, predict),
@@ -656,7 +630,7 @@ def truth_pred_error_to_file(
 
     file_path = save_dir / f"{data_type}_batch_truth_pred_{unknown}.nc"
     print(f"Saved to {file_path}")
-    predict.to_netcdf(
+    truth_pred_error.to_netcdf(
         file_path,
         format="NETCDF4",
         engine="netcdf4",
@@ -665,4 +639,56 @@ def truth_pred_error_to_file(
             "pred": {"dtype": "float32"},
             "errors": {"dtype": "float32"},
         },
+    )
+
+
+def to_file(
+    truth,
+    predict,
+    error,
+    shape,
+    coords,
+    data_type: str,
+    unknown: str,
+    save_dir,
+    dims=("run", "r", "theta"),
+):
+    """
+
+    Args:
+        truth: shape (Nu, Ny)
+        predict: shape (Nu, Ny)
+        error: shape (Nu, Ny)
+        shape:
+        coords:
+        data_type:
+        unknown:
+        save_dir:
+        dims:
+
+    Returns:
+
+    """
+    truth = truth.reshape(shape)
+    predict = predict.reshape(shape)
+    error = error.reshape(shape)
+
+    squared_error = xr.DataArray(error**2, coords=coords, dims=dims)
+
+    mean_coordinate_error_to_file(
+        error=squared_error,
+        data_type=data_type,
+        unknown=unknown,
+        save_dir=save_dir,
+    )
+
+    truth_pred_error_to_file(
+        truth=truth,
+        predict=predict,
+        error=error,
+        coords=coords,
+        data_type=data_type,
+        unknown=unknown,
+        save_dir=save_dir,
+        dims=dims,
     )
