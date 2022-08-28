@@ -374,22 +374,29 @@ class JOB:
             self.model.params, self.state, parameters, datadict["inputs"]
         )
 
+        dims = ("run", "r", "theta")
+
+        # ============================
+        # normal scale error
+        # ============================
+
         # normalized error
         # ic
         ic: onet_disk2D.physics.initial_condition.IC
         ic_values = self.ic.func(parameters, datadict["inputs"]["y_net"])
-        # todo split the code below to methods
 
         # (pred - truth) / (truth - ic)
         if self.args["unknown"] == "log_sigma":
-            normalized_error = (10.0**predict - 10.0 ** datadict["s"]) / (
-                datadict["s"] - ic_values
-            )
+            # the data is already logged
+            truth_normal_scale = 10.0 ** datadict["s"]
+            predict_normal_scale = 10.0**predict
         else:
-            normalized_error = (predict - datadict["s"]) / (datadict["s"] - ic_values)
-        normalized_error = normalized_error.at[jnp.isinf(normalized_error)].set(jnp.nan)
-        # remove outliers
-        normalized_error, _, _ = outliers_to_nan(normalized_error, a=10)
+            truth_normal_scale = datadict["s"]
+            predict_normal_scale = predict
+
+        normalized_error = calculate_normalized_error(
+            truth=truth_normal_scale, predict=predict_normal_scale, ic_values=ic_values
+        )
 
         ms_normalized_errors = jnp.nanmean(normalized_error**2)
         # guild scalar
@@ -397,100 +404,81 @@ class JOB:
         print(f"{data_type}_{self.unknown_type}_norm= {ms_normalized_errors:.2g}")
         errors["norm"][self.unknown_type] = f"{ms_normalized_errors:.2g}"
 
-        l2_errors = jnp.linalg.norm((predict - datadict["s"])) / jnp.linalg.norm(
-            datadict["s"]
-        )
+        l2_errors = jnp.linalg.norm(
+            predict_normal_scale - truth_normal_scale
+        ) / jnp.linalg.norm(truth_normal_scale)
         # guild scalar
         print(f"{data_type}_{self.unknown_type}_l2: {l2_errors}")
         print(f"{data_type}_{self.unknown_type}_l2= {l2_errors:.2g}")
         errors["l2"][self.unknown_type] = f"{l2_errors:.2g}"
 
-        dims = ("run", "r", "theta")
-        predict = predict.reshape(data.shape)
+        truth_normal_scale = truth_normal_scale.reshape(data.shape)
+        predict_normal_scale = predict_normal_scale.reshape(data.shape)
         normalized_error = normalized_error.reshape(data.shape)
 
-        mean_coordinate_mse_errors = xr.DataArray(
+        squared_normalized_error = xr.DataArray(
             normalized_error**2, coords=data.coords, dims=dims
         )
-        mean_coordinate_mse_errors = mean_coordinate_mse_errors.mean(["r", "theta"])
-
-        mean_coordinate_mse_errors.to_netcdf(
-            save_dir / f"{data_type}_mean_errors_{self.unknown_type}.nc",
-            format="NETCDF4",
-            engine="netcdf4",
+        mean_coordinate_error_to_file(
+            error=squared_normalized_error,
+            data_type=data_type,
+            unknown=self.unknown_type,
+            save_dir=save_dir,
         )
 
-        predict = xr.Dataset(
-            data_vars={
-                "truth": (dims, data.values),
-                "pred": (dims, predict),
-                "errors": (dims, normalized_error),
-            },
+        truth_pred_error_to_file(
+            truth=truth_normal_scale,
+            predict=predict_normal_scale,
+            error=normalized_error,
             coords=data.coords,
+            data_type=data_type,
+            unknown=self.unknown_type,
+            save_dir=save_dir,
+            dims=dims,
         )
 
-        predict.to_netcdf(
-            save_dir / f"{data_type}_batch_truth_pred_{self.unknown_type}.nc",
-            format="NETCDF4",
-            engine="netcdf4",
-            encoding={
-                "truth": {"dtype": "float32"},
-                "pred": {"dtype": "float32"},
-                "errors": {"dtype": "float32"},
-            },
-        )
-
+        # ============================
+        # log scale error
+        # ============================
         if self.args["unknown"] in ["sigma", "log_sigma"]:
             k = "log_sigma"
-            datadict = onet_disk2D.data.to_datadict(data)
-
-            predict = self.s_pred_fn(
-                self.model.params, self.state, parameters, datadict["inputs"]
-            )
-
             if self.args["unknown"] == "sigma":
-                predict = np.log10(predict)
+                truth_log_scale = np.log10(datadict["s"])
+                predict_log_scale = np.log10(predict)
+            else:
+                truth_log_scale = datadict["s"]
+                predict_log_scale = predict
 
-            error = predict - datadict["s"]
+            error = predict_log_scale - truth_log_scale
             mean_squared_errors = jnp.nanmean(error**2)
             # guild scalar
             print(f"{data_type}_{k}_mse: {mean_squared_errors}")
             print(f"{data_type}_{k}_mse= {mean_squared_errors:.2g}")
             errors["mse"][k] = f"{mean_squared_errors:.2g}"
 
-            dims = ("run", "r", "theta")
-            predict = predict.reshape(data.shape)
+            truth_log_scale = truth_log_scale.reshape(data.shape)
+            predict_log_scale = predict_log_scale.reshape(data.shape)
             error = error.reshape(data.shape)
 
-            mean_coordinate_errors = xr.DataArray(
+            squared_normalized_error = xr.DataArray(
                 error**2, coords=data.coords, dims=dims
             )
-            mean_coordinate_errors = mean_coordinate_errors.mean(["r", "theta"])
-
-            mean_coordinate_errors.to_netcdf(
-                save_dir / f"{data_type}_mean_errors_{k}.nc",
-                format="NETCDF4",
-                engine="netcdf4",
+            mean_coordinate_error_to_file(
+                error=squared_normalized_error,
+                data_type=data_type,
+                unknown=k,
+                save_dir=save_dir,
             )
 
-            predict = xr.Dataset(
-                data_vars={
-                    "truth": (dims, data.values),
-                    "pred": (dims, predict),
-                    "errors": (dims, error),
-                },
+            truth_pred_error_to_file(
+                truth=truth_log_scale,
+                predict=predict_log_scale,
+                error=error,
                 coords=data.coords,
-            )
-
-            predict.to_netcdf(
-                save_dir / f"{data_type}_batch_truth_pred_{k}.nc",
-                format="NETCDF4",
-                engine="netcdf4",
-                encoding={
-                    "truth": {"dtype": "float32"},
-                    "pred": {"dtype": "float32"},
-                    "errors": {"dtype": "float32"},
-                },
+                data_type=data_type,
+                unknown=k,
+                save_dir=save_dir,
+                dims=dims,
             )
 
         with open(summary_dir / f"{data_type}_error.yml", "w") as f:
@@ -605,3 +593,76 @@ def outliers_to_nan(array, a=10):
     array[array < lower] = np.nan
     array[array > upper] = np.nan
     return array, upper, lower
+
+
+def calculate_normalized_error(truth, predict, ic_values):
+    """
+
+    Args:
+        truth: shape (Nu, Ny)
+        predict: shape (Nu, Ny)
+        ic_values:
+
+    Returns:
+
+    """
+    normalized_error = (predict - truth) / (truth - ic_values)
+    normalized_error = normalized_error.at[jnp.isinf(normalized_error)].set(jnp.nan)
+    # remove outliers
+    normalized_error, _, _ = outliers_to_nan(normalized_error, a=10)
+
+    return normalized_error
+
+
+def mean_coordinate_error_to_file(error, data_type, unknown, save_dir):
+    error = error.mean(["r", "theta"])
+    error.to_netcdf(
+        save_dir / f"{data_type}_mean_errors_{unknown}.nc",
+        format="NETCDF4",
+        engine="netcdf4",
+    )
+
+
+def truth_pred_error_to_file(
+    truth,
+    predict,
+    error,
+    coords,
+    data_type,
+    unknown,
+    save_dir,
+    dims=("run", "r", "theta"),
+):
+    """
+
+    Args:
+        truth: array of shape (Nu, Nr, Ntheta)
+        predict: array of shape (Nu, Nr, Ntheta)
+        error: array of shape (Nu, Nr, Ntheta)
+        dims:
+
+    Returns:
+        None
+    """
+
+    predict = xr.Dataset(
+        data_vars={
+            "truth": (dims, truth),
+            "pred": (dims, predict),
+            "errors": (dims, error),
+        },
+        coords=coords,
+    )
+
+    file_path = save_dir / f"{data_type}_batch_truth_pred_{unknown}.nc"
+    print(f"Saved to {file_path}")
+    predict.to_netcdf(
+        file_path,
+        format="NETCDF4",
+        engine="netcdf4",
+        encoding={
+            "truth": {"dtype": "float32"},
+            "pred": {"dtype": "float32"},
+            "errors": {"dtype": "float32"},
+        },
+    )
