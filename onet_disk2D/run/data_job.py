@@ -1,7 +1,6 @@
 import functools
 
 import numpy as np
-import xarray as xr
 
 import onet_disk2D.callbacks
 import onet_disk2D.constraints

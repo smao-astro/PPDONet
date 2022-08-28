@@ -1,5 +1,4 @@
 """Flexible manipulating job attributes in a clean way."""
-import pathlib
 import typing
 
 import jax
@@ -8,8 +7,6 @@ import jaxphyinf.io
 import matplotlib.pyplot as plt
 import xarray as xr
 import yaml
-
-import onet_disk2D.constraints
 
 
 class Callback:

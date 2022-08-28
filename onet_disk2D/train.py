@@ -2,7 +2,6 @@
 Script for training
 """
 import argparse
-import distutils.util
 
 
 def list_of_float(raw_inputs: str):
