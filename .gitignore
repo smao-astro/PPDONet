@@ -1,0 +1,6 @@
+.venv
+notebooks
+guild_home
+tmp*
+results
+*.nc
