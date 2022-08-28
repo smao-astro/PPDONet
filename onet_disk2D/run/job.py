@@ -290,8 +290,8 @@ class JOB:
         attrs = self.args.copy()
         attrs["parameter"] = ",".join(attrs["parameter"])
 
-        data = self.s_pred_fn(self.model.params, self.state, parameters_all, inputs)
-        data = data.reshape(u.shape[0], ny, nx)
+        predict = self.s_pred_fn(self.model.params, self.state, parameters_all, inputs)
+        predict = predict.reshape(u.shape[0], ny, nx)
         coords = {
             pname: ("run", pvalue.reshape(len(u)))
             for pname, pvalue in parameters.items()
@@ -303,7 +303,7 @@ class JOB:
             }
         )
         predict = xr.DataArray(
-            data,
+            predict,
             coords=coords,
             dims=["run", "r", "theta"],
             attrs=attrs,
