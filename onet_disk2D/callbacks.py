@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import yaml
 
+import onet_disk2D.data
+
 
 class Callback:
     def __init__(self):
@@ -320,3 +322,13 @@ class ModelSaver(Callback):
 
     def on_train_end(self):
         self.save_model(name="final")
+
+
+class InputChecker(Callback):
+    def on_train_begin(self):
+        key = self.job.args["unknown"]
+        data = onet_disk2D.data.to_datadict(self.job.data[key])
+        transformed_inputs = self.job.u_net_input_transform(data["inputs"]["u_net"])
+        print("transformed_inputs:")
+        print("\tMean: ", jnp.mean(transformed_inputs, axis=0))
+        print("\tStd: ", jnp.std(transformed_inputs, axis=0))

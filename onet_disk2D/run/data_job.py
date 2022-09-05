@@ -19,6 +19,9 @@ class DataTrain(Train):
         )
         self.train_data, self.val_data = self.get_train_val_data()
 
+        if set(self.data_loader.parameter_names) != set(self.parameter):
+            raise ValueError
+
     def release_data(self):
         for d in self.data.values():
             d.close()
@@ -100,6 +103,8 @@ class DataTrain(Train):
                 period=self.args["steps_per_log_out_mag"],
             )
         )
+
+        callbacks.append(onet_disk2D.callbacks.InputChecker())
 
         callbacks = onet_disk2D.callbacks.CallbackList(callbacks)
         callbacks.set_job(self)

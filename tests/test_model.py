@@ -99,8 +99,9 @@ class TestModel:
     def test_input_normalization_model(
         self, u_net_layer_size, y_net_layer_size, n_node, inputs
     ):
-        u_median = jnp.median(inputs["u_net"])
-        u_transform = onet_disk2D.model.get_input_normalization(u_median)
+        u_min = jnp.min(inputs["u_net"], axis=0)
+        u_max = jnp.max(inputs["u_net"], axis=0)
+        u_transform = onet_disk2D.model.get_input_normalization(u_min=u_min, u_max=u_max)
 
         model = onet_disk2D.model.build_model(
             Nnode=n_node,

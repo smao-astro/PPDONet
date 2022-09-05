@@ -74,9 +74,39 @@ def outputs_scaling_transform(f):
     return outputs_fn, outputs_and_a_fn
 
 
-def get_input_normalization(denominator):
+def str_to_func(func):
+    if func == "":
+        return None
+    elif func == "log10":
+        return jnp.log10
+    else:
+        raise NotImplementedError
+
+
+def get_input_transform(funcs):
+    funcs = [str_to_func(func) for func in funcs]
+
+    @jax.jit
+    def f(inputs):
+        for i, func in enumerate(funcs):
+            if func is not None:
+                inputs = jnp.concatenate(
+                    [
+                        inputs[..., :i],
+                        func(inputs[..., i : i + 1]),
+                        inputs[..., i + 1 :],
+                    ],
+                    axis=-1,
+                )
+        return inputs
+
+    return f
+
+
+def get_input_normalization(u_min, u_max):
     def transform(inputs):
-        return inputs / denominator
+        mid = (u_min + u_max) / 2.0
+        return 2.0 * (inputs - mid) / (u_max - u_min)
 
     return transform
 

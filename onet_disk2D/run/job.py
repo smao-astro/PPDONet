@@ -167,15 +167,28 @@ class JOB:
 
     @functools.cached_property
     def u_net_input_transform(self):
-        if len(self.args["scale_on_u"]) != len(self.parameter):
+        if len(self.args["u_min"]) != len(self.parameter):
             print("=" * 20)
             print(
-                f"Warning: scale_on_u = {self.args['scale_on_u']}, parameter: {self.parameter}. Shapes does not match."
+                f"Warning: u_min = {self.args['u_min']}, parameter: {self.parameter}. Shapes does not match."
             )
             print("=" * 20)
-        return onet_disk2D.model.get_input_normalization(
-            jnp.array(self.args["scale_on_u"])
+        if len(self.args["u_max"]) != len(self.parameter):
+            print("=" * 20)
+            print(
+                f"Warning: u_max = {self.args['u_max']}, parameter: {self.parameter}. Shapes does not match."
+            )
+            print("=" * 20)
+        if len(self.args["u_transform"]) != len(self.parameter):
+            raise ValueError
+
+        transform_func = onet_disk2D.model.get_input_transform(self.args["u_transform"])
+
+        normalization_func = onet_disk2D.model.get_input_normalization(
+            u_min=jnp.array(self.args["u_min"]), u_max=jnp.array(self.args["u_max"])
         )
+
+        return lambda inputs: normalization_func(transform_func(inputs))
 
     @functools.cached_property
     def u_net_output_transform(self):
