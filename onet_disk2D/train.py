@@ -59,9 +59,9 @@ def get_parser():
         default="glorot_normal",
     )
     # periodic boundary hard constraint defaults to ON, no need to add to args
-    parser.add_argument("--u_min", type=list_of_float, default=[1.0])
-    parser.add_argument("--u_max", type=list_of_float, default=[1.0])
-    parser.add_argument("--u_transform", type=list_of_str, default=[""])
+    parser.add_argument("--u_min", type=list_of_float, default="1.0")
+    parser.add_argument("--u_max", type=list_of_float, default="1.0")
+    parser.add_argument("--u_transform", type=list_of_str, default="")
     parser.add_argument("--scale_on_s", type=float, default=1.0)
     # IC shift
     parser.add_argument(
