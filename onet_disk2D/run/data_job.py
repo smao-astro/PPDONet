@@ -64,9 +64,10 @@ class DataTrain(Train):
 
     @functools.cached_property
     def val_data_loader(self):
+        n_run = len(self.val_data[self.args["unknown"]]["run"])
         return onet_disk2D.data.DataIterLoader(
             data=self.val_data,
-            batch_size=self.args["batch_size_data"],
+            batch_size=n_run,
             fixed_parameters=self.fixed_parameters,
         )
 
