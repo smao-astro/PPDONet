@@ -63,6 +63,14 @@ class DataTrain(Train):
         )
 
     @functools.cached_property
+    def val_data_loader(self):
+        return onet_disk2D.data.DataIterLoader(
+            data=self.val_data,
+            batch_size=self.args["batch_size_data"],
+            fixed_parameters=self.fixed_parameters,
+        )
+
+    @functools.cached_property
     def constraints(self):
         return onet_disk2D.constraints.DataConstraints(
             s_pred_fn=self.s_pred_fn,
@@ -88,6 +96,8 @@ class DataTrain(Train):
         callbacks.append(
             onet_disk2D.callbacks.LossLogger(
                 "data_loss",
+                train_data_loader=self.data_loader,
+                val_data_loader=self.val_data_loader,
                 period=self.args["steps_per_log"],
                 period_dump=self.args["steps_per_dump_log"],
             )

@@ -3,6 +3,7 @@ import typing
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 import jaxphyinf.io
 import matplotlib.pyplot as plt
 import xarray as xr
@@ -229,9 +230,13 @@ def plot_mag(mag_xarray) -> plt.Figure:
 
 
 class LossLogger(Callback):
-    def __init__(self, file_name, period=10, period_dump=300):
+    def __init__(
+        self, file_name, train_data_loader, val_data_loader, period=10, period_dump=300
+    ):
         super(LossLogger, self).__init__()
         self.file_name = file_name
+        self.train_data_loader = train_data_loader
+        self.val_data_loader = val_data_loader
         self.period = period
         self.period_dump = period_dump
         self.log = {}
@@ -251,7 +256,8 @@ class LossLogger(Callback):
         loss_xarray.to_netcdf(self.job.save_dir / (self.file_name + ".nc"))
 
     def on_train_begin(self):
-        self.log = {k: [] for k in self.job.constraints.loss_fn}
+        self.log.update({"train_" + k: [] for k in self.job.constraints.loss_fn})
+        self.log.update({"val_" + k: [] for k in self.job.constraints.loss_fn})
         self.log["i_steps"] = []
 
     def on_train_batch_end(self, i_steps, i_steps_total):
@@ -261,8 +267,33 @@ class LossLogger(Callback):
                 print("loss: ", self.job.vs)
                 raise ValueError("Get NAN in training!")
             self.log["i_steps"].append(i_steps_total)
-            for k, v in self.job.vs.items():
-                self.log[k].append(float(v))
+            for k, loss_fn in self.job.constraints.loss_fn.items():
+                train_loss = []
+                for i, (parameters, data) in zip(
+                    range(self.train_data_loader.n_batch), self.train_data_loader
+                ):
+                    train_loss.append(
+                        loss_fn(
+                            self.job.model.params,
+                            self.job.state,
+                            parameters,
+                            data[k[5:]],
+                        )
+                    )
+                self.log["train_" + k].append(float(np.mean(train_loss)))
+                val_loss = []
+                for i, (parameters, data) in zip(
+                    range(self.val_data_loader.n_batch), self.val_data_loader
+                ):
+                    val_loss.append(
+                        loss_fn(
+                            self.job.model.params,
+                            self.job.state,
+                            parameters,
+                            data[k[5:]],
+                        )
+                    )
+                self.log["val_" + k].append(float(np.mean(val_loss)))
         if i_steps_total % self.period_dump == 0:
             self.dump()
 
