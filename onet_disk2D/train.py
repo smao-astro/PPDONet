@@ -12,6 +12,13 @@ def list_of_int(raw_inputs: str):
     return [int(value) for value in raw_inputs.split(",")]
 
 
+def list_of_int_default_empty(raw_inputs: str):
+    if raw_inputs:
+        return [int(value) for value in raw_inputs.split(",")]
+    else:
+        return []
+
+
 def list_of_str(raw_inputs: str):
     return [value for value in raw_inputs.split(",")]
 
@@ -38,6 +45,9 @@ def get_parser():
     )
     parser.add_argument("--u_net_layer_size", type=list_of_int, default="10,20")
     parser.add_argument("--y_net_layer_size", type=list_of_int, default="15,25")
+    parser.add_argument(
+        "--z_net_layer_size", type=list_of_int_default_empty, default=""
+    )
     parser.add_argument(
         "--activation",
         type=str,

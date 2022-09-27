@@ -123,6 +123,7 @@ def build_model(
     u_net_output_transform=None,
     y_net_input_transform=None,
     y_net_output_transform=None,
+    z_net_layer_size=None,
     **kwargs,
 ):
     """
@@ -142,6 +143,7 @@ def build_model(
         u_net_output_transform:
         y_net_input_transform:
         y_net_output_transform:
+        z_net_layer_size: If not empty list or None, use TriDeepONet
 
     Returns:
 
@@ -175,7 +177,18 @@ def build_model(
 
     y_net.build()
 
-    # [2022.05.30] output transform can be do outside this function
-    model = jaxphyinf.model.DeepONet(u_net, y_net)
+    if z_net_layer_size:
+        z_net = jaxphyinf.model.MLP(
+            inputs_dim=Nnode,
+            outputs_dim=1,
+            layer_size=z_net_layer_size,
+            activation=activation,
+            w_init=initializer,
+        )
+        z_net.build()
+        model = jaxphyinf.model.TriDeepONet(u_net, y_net, z_net)
+    else:
+        # [2022.05.30] output transform can be do outside this function
+        model = jaxphyinf.model.DeepONet(u_net, y_net)
 
     return model
