@@ -373,10 +373,11 @@ class JOB:
 
         errors = {"l2": {}, "mse": {}, "norm": {}}
 
+        n_run = len(data["run"])
         parameters = {p.lower(): data[p].values[..., None] for p in self.parameter}
         parameters.update(
             {
-                p: jnp.full((len(data["run"]), 1), fill_value=v)
+                p: jnp.full((n_run, 1), fill_value=v)
                 for p, v in self.fixed_parameters.items()
             }
         )
@@ -384,9 +385,15 @@ class JOB:
         datadict = onet_disk2D.data.to_datadict(data)
         # datadict: {inputs: {u_net, y_net}, s}
 
-        predict = onet_disk2D.vmap.adaptive_vmap_p(self.s_pred_fn)(
-            self.model.params, self.state, parameters, datadict["inputs"]
-        )
+        predict = []
+        for i in range(n_run):
+            ps = {k: p[i : i + 1] for k, p in parameters.items()}
+            inputs = {
+                "u_net": datadict["inputs"]["u_net"][i : i + 1],
+                "y_net": datadict["inputs"]["y_net"],
+            }
+            predict.append(self.s_pred_fn(self.model.params, self.state, ps, inputs))
+        predict = jnp.concatenate(predict)
 
         dims = ("run", "r", "theta")
 
