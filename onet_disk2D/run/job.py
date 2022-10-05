@@ -17,6 +17,7 @@ import onet_disk2D.data
 import onet_disk2D.grids
 import onet_disk2D.model
 import onet_disk2D.physics
+import onet_disk2D.vmap
 
 
 def resolve_save_dir(save_dir, file_list, verbose=True):
@@ -383,7 +384,7 @@ class JOB:
         datadict = onet_disk2D.data.to_datadict(data)
         # datadict: {inputs: {u_net, y_net}, s}
 
-        predict = self.s_pred_fn(
+        predict = onet_disk2D.vmap.adaptive_vmap_p(self.s_pred_fn)(
             self.model.params, self.state, parameters, datadict["inputs"]
         )
 
