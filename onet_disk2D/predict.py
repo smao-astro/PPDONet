@@ -41,6 +41,9 @@ def get_parser():
     parser.add_argument("--ymax", type=float)
     parser.add_argument("--ny", type=int, help="NY in fargo3d.")
     parser.add_argument("--nx", type=int, help="NX in fargo3d.")
+    parser.add_argument(
+        "--name", type=str, default="", help="Name attribute for output file."
+    )
 
     return parser
 
@@ -78,4 +81,5 @@ if __name__ == "__main__":
         ymax=predict_args.ymax,
         ny=predict_args.ny,
         nx=predict_args.nx,
+        name=predict_args.name,
     )

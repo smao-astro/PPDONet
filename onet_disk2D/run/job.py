@@ -240,6 +240,7 @@ class JOB:
         ymax=None,
         ny=None,
         nx=None,
+        name="",
         **kwargs,
     ):
         """
@@ -254,6 +255,7 @@ class JOB:
             ymax:
             ny:
             nx:
+            name:
             **kwargs:
 
         Returns:
@@ -322,8 +324,12 @@ class JOB:
             dims=["run", "r", "theta"],
             attrs=attrs,
         )
+        if name:
+            file_name = f"batch_predict_{self.args['unknown']}_{name}.nc"
+        else:
+            file_name = f"batch_predict_{self.args['unknown']}.nc"
         predict.to_netcdf(
-            save_dir / f"batch_predict_{self.args['unknown']}.nc",
+            save_dir / file_name,
             format="NETCDF4",
             engine="netcdf4",
         )
