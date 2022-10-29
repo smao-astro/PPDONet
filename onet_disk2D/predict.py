@@ -63,7 +63,7 @@ if __name__ == "__main__":
         model_dir = run_dir
 
     # load args from file
-    with open(predict_args.args_file, "r") as f:
+    with open(run_dir / predict_args.args_file, "r") as f:
         train_args = yaml.safe_load(f)
     train_args["arg_groups_file"] = (run_dir / predict_args.arg_groups_file).as_posix()
     train_args["fargo_setups"] = (run_dir / predict_args.fargo_setup_file).as_posix()
