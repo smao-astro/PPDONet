@@ -5,7 +5,6 @@ import pandas as pd
 import yaml
 
 import onet_disk2D.run
-import onet_disk2D.train
 
 
 def get_parser():
