@@ -118,7 +118,8 @@ class DataIterLoader:
         # u shape: (Nu, 1) y shape: (Nr, Ntheta, 2) s shape (Nu, Nr, Ntheta, 1)
         data = self.data.isel(**{"run": batch_index})
         parameters = {
-            p.lower(): data[p].values[..., None] for p in self.parameter_names
+            p.lower(): jnp.array(data[p].values[..., None])
+            for p in self.parameter_names
         }
         parameters.update(
             {
