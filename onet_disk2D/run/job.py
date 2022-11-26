@@ -78,18 +78,38 @@ class JOB:
         self.arg_groups = load_arg_groups(self.args["arg_groups_file"])
 
         # build model
-        self.model = onet_disk2D.model.build_model(
-            Nx=len(self.parameter),
-            u_net_input_transform=self.u_net_input_transform,
-            u_net_output_transform=self.u_net_output_transform,
-            y_net_input_transform=self.y_net_input_transform,
-            y_net_output_transform=self.y_net_output_transform,
-            **self.args,
-        )
         self.s_raw_and_a_fn = onet_disk2D.model.outputs_scaling_transform(
             self.model.forward_apply
         )[1]
         self.state = {"scaling_factors": jnp.array(self.args["scale_on_s"])}
+
+    @functools.cached_property
+    def model(self):
+        if self.args["mlp_layer_size"]:
+            if (
+                self.args["u_net_layer_size"]
+                or self.args["y_net_layer_size"]
+                or self.args["z_net_layer_size"]
+            ):
+                raise ValueError
+            else:
+                m = onet_disk2D.model.build_mlponet(
+                    layer_size=self.args["mlp_layer_size"],
+                    Nx=len(self.parameter),
+                    u_net_input_transform=self.u_net_input_transform,
+                    y_net_input_transform=self.y_net_input_transform,
+                    **self.args,
+                )
+        else:
+            m = onet_disk2D.model.build_model(
+                Nx=len(self.parameter),
+                u_net_input_transform=self.u_net_input_transform,
+                u_net_output_transform=self.u_net_output_transform,
+                y_net_input_transform=self.y_net_input_transform,
+                y_net_output_transform=self.y_net_output_transform,
+                **self.args,
+            )
+        return m
 
     @functools.cached_property
     def ic(self):

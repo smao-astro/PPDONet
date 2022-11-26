@@ -43,8 +43,13 @@ def get_parser():
         default=5,
         help="Number of neurons of the last layer of u_net (and y_net).",
     )
-    parser.add_argument("--u_net_layer_size", type=list_of_int, default="10,20")
-    parser.add_argument("--y_net_layer_size", type=list_of_int, default="15,25")
+    parser.add_argument(
+        "--u_net_layer_size", type=list_of_int_default_empty, default="10,20"
+    )
+    parser.add_argument(
+        "--y_net_layer_size", type=list_of_int_default_empty, default="15,25"
+    )
+    parser.add_argument("--mlp_layer_size", type=list_of_int_default_empty, default="")
     parser.add_argument(
         "--z_net_layer_size", type=list_of_int_default_empty, default=""
     )

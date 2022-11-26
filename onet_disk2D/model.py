@@ -111,6 +111,33 @@ def get_input_normalization(u_min, u_max):
     return transform
 
 
+def build_mlponet(
+    layer_size,
+    Nx=1,
+    Ndim=2,
+    activation="tanh",
+    initializer="glorot_uniform",
+    u_net_input_transform=None,
+    y_net_input_transform=None,
+    **kwargs,
+):
+    activation = jaxphyinf.get_activation(activation)
+    initializer = jaxphyinf.get_initializer(initializer)
+
+    model = jaxphyinf.model.MLPSingleONet(
+        Nx=Nx,
+        Ndim=Ndim,
+        layer_size=layer_size,
+        activation=activation,
+        w_init=initializer,
+    )
+    model.u_net_input_transform = u_net_input_transform
+    model.y_net_input_transform = y_net_input_transform
+    model.build()
+
+    return model
+
+
 def build_model(
     Nnode,
     u_net_layer_size,
