@@ -412,7 +412,7 @@ class JOB:
         # datadict: {inputs: {u_net, y_net}, s}
 
         predict = []
-        for i in range(n_run):
+        for i in tqdm.trange(n_run):
             ps = {k: p[i : i + 1] for k, p in parameters.items()}
             inputs = {
                 "u_net": datadict["inputs"]["u_net"][i : i + 1],
