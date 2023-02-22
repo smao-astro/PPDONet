@@ -326,7 +326,14 @@ class FungVRIC(IC):
             r = y[..., 0]
 
             h_over_r = parameters["aspectratio"] * r ** parameters["flaringindex"]
-            ic_values = -1.5 * parameters["alpha"] * h_over_r**2 * r ** (-0.5)
+            # only applies to cases where alpha and h/r are constants
+            ic_values = (
+                -3
+                * (1 - parameters["sigmaslope"])
+                * parameters["alpha"]
+                * h_over_r**2
+                * r ** (-0.5)
+            )
 
             return ic_values
 
