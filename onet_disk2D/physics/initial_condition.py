@@ -229,7 +229,8 @@ class FungVThetaIC(IC):
             """
             r = y[..., 0]
             h_over_r = parameters["aspectratio"] * r ** parameters["flaringindex"]
-            ic_values = (1 - 0.5 * h_over_r**2) ** 0.5 * r ** (
+            factor = 1.0 + parameters["sigmaslope"] - 2.0 * parameters["flaringindex"]
+            ic_values = (1 - factor * h_over_r**2) ** 0.5 * r ** (
                 -0.5
             ) - self.omegaframe * r
             return ic_values
