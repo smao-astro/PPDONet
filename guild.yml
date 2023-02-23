@@ -93,6 +93,13 @@
           target-type: link
       flags-dest: args
       flags-import: all
+    to_movie2:
+      main: fargo_data_process.fargo_outputs2movie2
+      requires:
+        - operation: run
+          target-type: link
+      flags-dest: args
+      flags-import: all
 #    to_frames:
 #      main: fargo_data_process.fargo_outputs2frames
 #      requires:
