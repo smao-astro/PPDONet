@@ -86,6 +86,7 @@ class JOB:
     @functools.cached_property
     def model(self):
         if self.args["mlp_layer_size"]:
+            # use MLP rather than DeepONet
             if (
                 self.args["u_net_layer_size"]
                 or self.args["y_net_layer_size"]
@@ -101,6 +102,7 @@ class JOB:
                     **self.args,
                 )
         else:
+            # DeepONet
             m = onet_disk2D.model.build_model(
                 Nx=len(self.parameter),
                 u_net_input_transform=self.u_net_input_transform,
@@ -246,7 +248,7 @@ class JOB:
             ic = None
         else:
             raise NotImplementedError
-        # CAUTION: The `get_transformed_s_fn` should always be applied to make s_fn a function that has signature (params, state, parameters, inputs)
+        # CAUTION: The `get_transformed_s_fn` should always be applied so that s_pred_fn has signature (params, state, parameters, inputs)
         s_fn = onet_disk2D.physics.initial_condition.get_transformed_s_fn(ic, s_fn)
 
         return s_fn
