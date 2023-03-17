@@ -17,7 +17,6 @@ import onet_disk2D.data
 import onet_disk2D.grids
 import onet_disk2D.model
 import onet_disk2D.physics
-import onet_disk2D.vmap
 
 
 def resolve_save_dir(save_dir, file_list, verbose=True):

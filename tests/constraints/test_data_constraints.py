@@ -9,7 +9,6 @@ import onet_disk2D.constraints
 import onet_disk2D.data
 import onet_disk2D.model
 import onet_disk2D.physics.initial_condition
-import onet_disk2D.vmap
 
 SINGLEP_DATAPATH = "../data/singlep"
 MULTIP_DATAPATH = "../data/multip"
