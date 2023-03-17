@@ -193,21 +193,6 @@ class JOB:
         return ps
 
     @functools.cached_property
-    def fixed_parameters(self):
-        fixed_p_names = onet_disk2D.parameters - set(self.parameter)
-        if self.arg_groups["opt"]["ALPHAVISCOSITY"]:
-            fixed_p_names -= {"NU"}
-        elif self.arg_groups["opt"]["VISCOSITY"]:
-            fixed_p_names -= {"ALPHA"}
-        else:
-            raise NotImplementedError
-
-        return {
-            p_name.lower(): float(self.fargo_setups[p_name.lower()])
-            for p_name in fixed_p_names
-        }
-
-    @functools.cached_property
     def u_net_input_transform(self):
         if len(self.args["u_min"]) != len(self.parameter):
             print("=" * 20)
@@ -436,7 +421,9 @@ class JOB:
         # normalized error
         # ic
         ic: onet_disk2D.physics.initial_condition.IC
-        ic_values = self.ic.func(datadict["inputs"]["u_net"], datadict["inputs"]["y_net"])
+        ic_values = self.ic.func(
+            datadict["inputs"]["u_net"], datadict["inputs"]["y_net"]
+        )
 
         # (pred - truth) / (truth - ic)
         if self.args["unknown"] == "log_sigma":
