@@ -124,7 +124,7 @@ class TestModel:
         s = model.forward_apply(model.params, inputs)
 
         scaling_factors = {"scaling_factors": jnp.array(10.0)}
-        s2_fn = jaxphyinf.model.outputs_scaling_transform(model.forward_apply)[0]
+        s2_fn = onet_disk2D.model.outputs_scaling_transform(model.forward_apply)[0]
         s2 = s2_fn(model.params, scaling_factors, inputs)
 
         assert jnp.all(jnp.isclose(s * scaling_factors["scaling_factors"], s2))
@@ -159,7 +159,7 @@ class TestModel:
             y_net_layer_size=y_net_layer_size,
         )
         scaling_factors = {"scaling_factors": jnp.array(10.0)}
-        s_fn = jaxphyinf.model.outputs_scaling_transform(model.forward_apply)[0]
+        s_fn = onet_disk2D.model.outputs_scaling_transform(model.forward_apply)[0]
         s = s_fn(model.params, scaling_factors, inputs)
         ic_value = parameters["sigma0"] * inputs["y_net"][..., 0] ** (
             -parameters["sigmaslope"]

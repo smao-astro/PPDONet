@@ -110,7 +110,7 @@ class TestDataConstraints:
 
     @pytest.fixture
     def s_fn(self, model, ic):
-        f = jaxphyinf.model.outputs_scaling_transform(model.forward_apply)[0]
+        f = onet_disk2D.model.outputs_scaling_transform(model.forward_apply)[0]
         f = onet_disk2D.physics.initial_condition.get_transformed_s_fn(ic, f)
         return f
 
