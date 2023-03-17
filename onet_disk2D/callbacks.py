@@ -269,27 +269,25 @@ class LossLogger(Callback):
             self.log["i_steps"].append(i_steps_total)
             for k, loss_fn in self.job.constraints.loss_fn.items():
                 train_loss = []
-                for i, (parameters, data) in zip(
+                for i, data in zip(
                     range(self.train_data_loader.n_batch), self.train_data_loader
                 ):
                     train_loss.append(
                         loss_fn(
                             self.job.model.params,
                             self.job.state,
-                            parameters,
                             data[k[5:]],
                         )
                     )
                 self.log["train_" + k].append(float(np.mean(train_loss)))
                 val_loss = []
-                for i, (parameters, data) in zip(
+                for i, data in zip(
                     range(self.val_data_loader.n_batch), self.val_data_loader
                 ):
                     val_loss.append(
                         loss_fn(
                             self.job.model.params,
                             self.job.state,
-                            parameters,
                             data[k[5:]],
                         )
                     )

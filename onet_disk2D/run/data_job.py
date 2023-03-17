@@ -54,7 +54,6 @@ class DataTrain(Train):
         return onet_disk2D.data.DataIterLoader(
             data=self.train_data,
             batch_size=self.args["batch_size_data"],
-            fixed_parameters=self.fixed_parameters,
         )
 
     @functools.cached_property
@@ -63,7 +62,6 @@ class DataTrain(Train):
         return onet_disk2D.data.DataIterLoader(
             data=self.val_data,
             batch_size=n_run,
-            fixed_parameters=self.fixed_parameters,
         )
 
     @functools.cached_property

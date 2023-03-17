@@ -36,11 +36,18 @@ def resolve_save_dir(save_dir, file_list, verbose=True):
 
 
 def load_fargo_setups(fargo_setups_file):
+    """Load fargo setups from fargo_setups_file.
+
+    Args:
+        fargo_setups_file:
+
+    Returns:
+        fargo_setups: dict of fargo setups, all keys are in lowercase, all values are of type string. `omegaframe` is determined by other parameters.
+    """
     fargo_setups_file = pathlib.Path(fargo_setups_file)
     with fargo_setups_file.open("r") as f:
         fargo_setups = yaml.safe_load(f)
     fargo_setups = {k.lower(): v for k, v in fargo_setups.items()}
-    # dict of fargo_setups, all keys are in lowercase, all values are of type string.
 
     # planet_config
     if "planetconfig" in fargo_setups:
@@ -123,13 +130,25 @@ class JOB:
         Returns:
 
         """
+        parameter = self.fargo_setups.copy()
+        # parameter input index
+        for i, k in enumerate(self.parameter):
+            if k in parameter:
+                raise KeyError(f"{k} is already in parameter")
+            else:
+                parameter[k.lower()] = (i,)
+
         if self.args["unknown"] in ["log_sigma", "sigma"]:
-            ic_ = onet_disk2D.physics.initial_condition.get_sigma_ic(self.fargo_setups)
+            ic_ = onet_disk2D.physics.initial_condition.get_sigma_ic(
+                self.fargo_setups["densityinitial"], parameter
+            )
         elif self.args["unknown"] == "v_r":
-            ic_ = onet_disk2D.physics.initial_condition.get_v_r_ic(self.fargo_setups)
+            ic_ = onet_disk2D.physics.initial_condition.get_v_r_ic(
+                self.fargo_setups["vyinitial"], parameter
+            )
         elif self.args["unknown"] == "v_theta":
             ic_ = onet_disk2D.physics.initial_condition.get_v_theta_ic(
-                self.fargo_setups
+                self.fargo_setups["vxinitial"], parameter
             )
         else:
             raise NotImplementedError
@@ -233,7 +252,7 @@ class JOB:
         """
 
         Returns:
-            Callable: (params, scaling_factors, parameters, inputs)
+            Callable: (params, scaling_factors, inputs)
         """
         s_fn = onet_disk2D.model.outputs_scaling_transform(self.model.forward_apply)[0]
         # Callable: (params, state, inputs)
@@ -243,13 +262,13 @@ class JOB:
                 raise ValueError(f"self.ic is None but ic_shift is ON.")
             if self.args["unknown"] == "log_sigma":
                 raise NotImplementedError
-            ic = self.ic
+            s_fn = onet_disk2D.physics.initial_condition.get_transformed_s_fn(
+                self.ic, s_fn
+            )
         elif self.args["ic_shift"] == "OFF":
-            ic = None
+            pass
         else:
             raise NotImplementedError
-        # CAUTION: The `get_transformed_s_fn` should always be applied so that s_pred_fn has signature (params, state, parameters, inputs)
-        s_fn = onet_disk2D.physics.initial_condition.get_transformed_s_fn(ic, s_fn)
 
         return s_fn
 
@@ -318,17 +337,10 @@ class JOB:
         if {k.lower() for k in parameters} != {k.lower() for k in self.parameter}:
             raise ValueError("Input parameters do not match self.parameter")
 
-        parameters_all = {k.lower(): p for k, p in parameters.items()}
-        fixed_parameters = {
-            k: jnp.full(shape=(len(u), 1), fill_value=p)
-            for k, p in self.fixed_parameters.items()
-        }
-        parameters_all = {**parameters_all, **fixed_parameters}
-
         attrs = self.args.copy()
         attrs["parameter"] = ",".join(attrs["parameter"])
 
-        predict = self.s_pred_fn(self.model.params, self.state, parameters_all, inputs)
+        predict = self.s_pred_fn(self.model.params, self.state, inputs)
         predict = predict.reshape(u.shape[0], ny, nx)
         coords = {
             pname: ("run", pvalue.reshape(len(u)))
@@ -402,25 +414,17 @@ class JOB:
         errors = {"l2": {}, "mse": {}, "norm": {}}
 
         n_run = len(data["run"])
-        parameters = {p.lower(): data[p].values[..., None] for p in self.parameter}
-        parameters.update(
-            {
-                p: jnp.full((n_run, 1), fill_value=v)
-                for p, v in self.fixed_parameters.items()
-            }
-        )
 
         datadict = onet_disk2D.data.to_datadict(data)
         # datadict: {inputs: {u_net, y_net}, s}
 
         predict = []
         for i in tqdm.trange(n_run):
-            ps = {k: p[i : i + 1] for k, p in parameters.items()}
             inputs = {
                 "u_net": datadict["inputs"]["u_net"][i : i + 1],
                 "y_net": datadict["inputs"]["y_net"],
             }
-            predict.append(self.s_pred_fn(self.model.params, self.state, ps, inputs))
+            predict.append(self.s_pred_fn(self.model.params, self.state, inputs))
         predict = jnp.concatenate(predict)
 
         dims = ("run", "r", "theta")
@@ -432,7 +436,7 @@ class JOB:
         # normalized error
         # ic
         ic: onet_disk2D.physics.initial_condition.IC
-        ic_values = self.ic.func(parameters, datadict["inputs"]["y_net"])
+        ic_values = self.ic.func(datadict["inputs"]["u_net"], datadict["inputs"]["y_net"])
 
         # (pred - truth) / (truth - ic)
         if self.args["unknown"] == "log_sigma":

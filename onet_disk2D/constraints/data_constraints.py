@@ -12,8 +12,7 @@ import functools
 
 import jax
 import jax.numpy as jnp
-
-from .constraints import ParametricConstraints
+import jaxphyinf.constraints
 
 
 class DataLoss:
@@ -71,8 +70,8 @@ class WeightedDataLoss(DataLoss):
         """
 
         @jax.jit
-        def f(parameters, data):
-            s_ic = self.ic_fn(parameters, data["inputs"]["y_net"])
+        def f(data):
+            s_ic = self.ic_fn(data["inputs"]["u_net"], data["inputs"]["y_net"])
             diff = (data["s"] - s_ic) ** 2
             width = jnp.max(diff, axis=-1, keepdims=True)
             diff = 50.0 * diff / width
@@ -83,8 +82,8 @@ class WeightedDataLoss(DataLoss):
     @functools.cached_property
     def mag_fn(self):
         @jax.jit
-        def f(parameters, data):
-            s_ic = self.ic_fn(parameters, data["inputs"]["y_net"])
+        def f(data):
+            s_ic = self.ic_fn(data["inputs"]["u_net"], data["inputs"]["y_net"])
             # The squared values might be too large. -> Take square-root.
             mag = jnp.mean((data["s"] - s_ic) ** 2, axis=-1, keepdims=True)
             w = 1.0 / mag
@@ -106,16 +105,15 @@ class WeightedDataLoss(DataLoss):
     def loss_fn(self):
         @jax.jit
         def f(*args):
-            parameters = args[-2]
             data = args[-1]
-            w = self.w_fn(parameters, data)
+            w = self.w_fn(data)
             res2 = w * self.res_fn(*args) ** 2
             return jnp.mean(res2)
 
         return f
 
 
-class DataConstraints(ParametricConstraints):
+class DataConstraints(jaxphyinf.constraints.Constraints):
     def __init__(
         self,
         s_pred_fn,
@@ -192,7 +190,6 @@ class DataConstraints(ParametricConstraints):
 
     def resample(self, key):
         super(DataConstraints, self).resample(key)
-        parameters, samples = next(self.data)
+        samples = next(self.data)
         for k, v in samples.items():
-            self.parameters["data_" + k] = parameters
             self.samples["data_" + k] = v

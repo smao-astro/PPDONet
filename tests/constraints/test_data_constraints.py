@@ -84,9 +84,7 @@ class TestDataConstraints:
             unknown=unknown,
         )
         batch_size = 9
-        return onet_disk2D.data.DataIterLoader(
-            data, batch_size, fixed_parameters=fixed_parameters
-        )
+        return onet_disk2D.data.DataIterLoader(data, batch_size)
 
     @pytest.fixture
     def scaling_factors(self):
@@ -104,14 +102,15 @@ class TestDataConstraints:
     @pytest.fixture
     def ic(self, unknown):
         if unknown == "sigma":
-            return onet_disk2D.physics.initial_condition.PowerlawSigmaIC()
+            return onet_disk2D.physics.initial_condition.PowerlawSigmaIC("1.0", "0.0")
         else:
             return None
 
     @pytest.fixture
     def s_fn(self, model, ic):
         f = onet_disk2D.model.outputs_scaling_transform(model.forward_apply)[0]
-        f = onet_disk2D.physics.initial_condition.get_transformed_s_fn(ic, f)
+        if ic is not None:
+            f = onet_disk2D.physics.initial_condition.get_transformed_s_fn(ic, f)
         return f
 
     @pytest.fixture
@@ -146,13 +145,13 @@ class TestDataConstraints:
         if unknown == "log_sigma":
             pytest.skip()
         else:
-            ic = onet_disk2D.physics.initial_condition.PowerlawSigmaIC()
+            ic = onet_disk2D.physics.initial_condition.PowerlawSigmaIC("1.0", "0.0")
             loss = onet_disk2D.constraints.data_constraints.WeightedDataLoss(
                 s_fn=s_fn, ic_fn=ic.func, data_loss_weighting="diff2"
             )
             data = iter(dataloader)
-            parameters, data = next(data)
-            l = loss.loss_fn(model.params, scaling_factors, parameters, data[unknown])
+            data = next(data)
+            l = loss.loss_fn(model.params, scaling_factors, data[unknown])
             assert l > 0
 
     def test_WeightedDataLoss_2(
@@ -161,13 +160,13 @@ class TestDataConstraints:
         if unknown == "log_sigma":
             pytest.skip()
         else:
-            ic = onet_disk2D.physics.initial_condition.PowerlawSigmaIC()
+            ic = onet_disk2D.physics.initial_condition.PowerlawSigmaIC("1.0", "0.0")
             loss = onet_disk2D.constraints.data_constraints.WeightedDataLoss(
                 s_fn=s_fn, ic_fn=ic.func, data_loss_weighting="diff2"
             )
             data = iter(dataloader)
-            parameters, data = next(data)
-            diff = loss.diff2_fn(parameters, data["sigma"])
+            data = next(data)
+            diff = loss.diff2_fn(data["sigma"])
             diff = diff.reshape((-1, 128, 384))
             for d in diff:
                 plt.figure()
@@ -182,19 +181,19 @@ class TestDataConstraints:
         if unknown == "log_sigma":
             pytest.skip()
         else:
-            ic = onet_disk2D.physics.initial_condition.PowerlawSigmaIC()
+            ic = onet_disk2D.physics.initial_condition.PowerlawSigmaIC("1.0", "0.0")
             loss = onet_disk2D.constraints.data_constraints.WeightedDataLoss(
                 s_fn=s_fn, ic_fn=ic.func, data_loss_weighting="mag"
             )
             data = iter(dataloader)
-            parameters, data = next(data)
-            w = loss.w_fn(parameters, data["sigma"])
-            res = loss.res_fn(model.params, scaling_factors, parameters, data["sigma"])
+            data = next(data)
+            w = loss.w_fn(data["sigma"])
+            res = loss.res_fn(model.params, scaling_factors, data["sigma"])
             res2 = jnp.mean(res**2, axis=-1)
 
             df = pd.DataFrame(
                 {
-                    "pm": parameters["planetmass"][:, 0],
+                    "pm": data["sigma"]["inputs"]["u_net"][:, 0],
                     "w": w[:, 0],
                     "res2": res2,
                     "loss": w[:, 0] * res2,
@@ -220,7 +219,6 @@ class TestDataConstraints:
             k: loss_fn(
                 model.params,
                 scaling_factors,
-                constraints.parameters[k],
                 constraints.samples[k],
             )
             for k, loss_fn in constraints.loss_fn.items()
@@ -235,7 +233,6 @@ class TestDataConstraints:
             k: fn(
                 model.params,
                 scaling_factors,
-                constraints.parameters[k],
                 constraints.samples[k],
             )
             for k, fn in constraints.res_fn.items()
@@ -250,15 +247,12 @@ class TestDataConstraints:
         constraints.resample(key)
         name = "data_" + constraints.unknown
         res_fn = constraints.res_fn[name]
-        res_fn_adaptive_vmap = onet_disk2D.vmap.adaptive_vmap_p_s(res_fn)
-        parameters = constraints.parameters[name]
+        res_fn_adaptive_vmap = onet_disk2D.vmap.adaptive_vmap_s(res_fn)
         samples = constraints.samples[name]
 
-        res = res_fn(model.params, scaling_factors, parameters, samples)
+        res = res_fn(model.params, scaling_factors, samples)
 
-        res_adaptive_vmap = res_fn_adaptive_vmap(
-            model.params, scaling_factors, parameters, samples
-        )
+        res_adaptive_vmap = res_fn_adaptive_vmap(model.params, scaling_factors, samples)
 
         cri = [jnp.all(jnp.isclose(res, res_adaptive_vmap))]
 
@@ -270,14 +264,13 @@ class TestDataConstraints:
         constraints.resample(key)
         name = "data_" + constraints.unknown
         res_fn = constraints.res_fn[name]
-        parameters = constraints.parameters[name]
         samples = constraints.samples[name]
 
         dres_fn = jax.jacfwd(res_fn, argnums=-1)
-        dres_adaptive_vmap_fn = onet_disk2D.vmap.adaptive_vmap_p_s(dres_fn)
+        dres_adaptive_vmap_fn = onet_disk2D.vmap.adaptive_vmap_s(dres_fn)
 
         dres_adaptive_vmap = dres_adaptive_vmap_fn(
-            model.params, scaling_factors, parameters, samples
+            model.params, scaling_factors, samples
         )
 
         cri = [

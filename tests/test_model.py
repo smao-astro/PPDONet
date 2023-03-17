@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 import jaxphyinf.model
+import numpy as np
 import pytest
 
 import onet_disk2D.model
@@ -39,15 +40,12 @@ class TestModel:
         y = y.reshape((-1, 2))
         return y
 
+    def test_y(self, y):
+        assert y.shape == (15, 2)
+
     @pytest.fixture
     def inputs(self, u, y):
         return {"u_net": u, "y_net": y}
-
-    def test_inputs(self, inputs):
-        u, y = inputs["u_net"], inputs["y_net"]
-        y = y.reshape((5, 3, 2))
-        cri = [jnp.isclose(jnp.min(y[:, :, 0]), 0.4)]
-        assert all(cri)
 
     def test_vanilla_model(self, u_net_layer_size, y_net_layer_size, n_node, inputs):
         model = onet_disk2D.model.build_model(
@@ -101,7 +99,9 @@ class TestModel:
     ):
         u_min = jnp.min(inputs["u_net"], axis=0)
         u_max = jnp.max(inputs["u_net"], axis=0)
-        u_transform = onet_disk2D.model.get_input_normalization(u_min=u_min, u_max=u_max)
+        u_transform = onet_disk2D.model.get_input_normalization(
+            u_min=u_min, u_max=u_max
+        )
 
         model = onet_disk2D.model.build_model(
             Nnode=n_node,
@@ -136,22 +136,13 @@ class TestModel:
             "vyinitial": "STATICVY",
             "vxinitial": "STATICPOWERLAW2DVAZIM",
             "omegaframe": 1.0,
+            "sigma0": 1.0,
+            "sigmaslope": 0.5,
         }
-        return IC.get_sigma_ic(fargo_setups)
-
-    @pytest.fixture
-    def parameters(self):
-        parameters = {
-            "sigma0": jnp.linspace(1.0, 2.0, 5),
-            "sigmaslope": jnp.linspace(0.0, 1.0, 5),
-            "flaringindex": jnp.linspace(0.0, 0.5, 5),
-            "aspectratio": jnp.linspace(0.05, 0.1, 5),
-        }
-        parameters = {k: jnp.reshape(v, (-1, 1)) for k, v in parameters.items()}
-        return parameters
+        return IC.get_sigma_ic("POWERLAW2DDENS", fargo_setups)
 
     def test_ic_shifted_model(
-        self, u_net_layer_size, y_net_layer_size, n_node, parameters, ic, inputs
+        self, u_net_layer_size, y_net_layer_size, n_node, ic, inputs
     ):
         model = onet_disk2D.model.build_model(
             Nnode=n_node,
@@ -161,12 +152,56 @@ class TestModel:
         scaling_factors = {"scaling_factors": jnp.array(10.0)}
         s_fn = onet_disk2D.model.outputs_scaling_transform(model.forward_apply)[0]
         s = s_fn(model.params, scaling_factors, inputs)
-        ic_value = parameters["sigma0"] * inputs["y_net"][..., 0] ** (
-            -parameters["sigmaslope"]
-        )
+        sigma0 = 1.0
+        sigmaslope = 0.5
+        ic_value = sigma0 * inputs["y_net"][..., 0] ** -sigmaslope
 
         s2_fn = IC.get_transformed_s_fn(ic, s_fn)
-        s2 = s2_fn(model.params, scaling_factors, parameters, inputs)
+        s2 = s2_fn(model.params, scaling_factors, inputs)
+
+        cri = [s.shape == s2.shape, jnp.all(jnp.isclose(s + ic_value, s2))]
+        assert all(cri)
+
+    def test_ic_shifted_model_mul_parameters(
+        self,
+        u_net_layer_size,
+        y_net_layer_size,
+        n_node,
+        y,
+    ):
+        alpha = np.logspace(-4, -3, 10)[:, None]
+        aspectratio = np.linspace(0.5, 1.0, 10)[:, None]
+        flaringindex = 0.0
+        sigmaslope = 0.5
+        u = np.concatenate([alpha, aspectratio], axis=-1)
+        inputs = {"u_net": u, "y_net": y}
+
+        fargo_setups = {
+            "alpha": (0,),
+            "aspectratio": (1,),
+            "flaringindex": "0.0",
+            "sigmaslope": "0.5",
+        }
+        ic = IC.FungVRIC(**fargo_setups)
+
+        model = onet_disk2D.model.build_model(
+            u_net_layer_size=u_net_layer_size,
+            y_net_layer_size=y_net_layer_size,
+            Nx=2,
+            Nnode=n_node,
+        )
+        scaling_factors = {"scaling_factors": jnp.array(10.0)}
+        s_fn = jaxphyinf.model.outputs_scaling_transform(model.forward_apply)[0]
+        s = s_fn(model.params, scaling_factors, inputs)
+        sigma0 = 1.0
+        sigmaslope = 0.5
+
+        r = inputs["y_net"][..., 0]
+        h_over_r = aspectratio * r**flaringindex
+        ic_value = -3 * (1 - sigmaslope) * alpha * h_over_r**2 * r ** (-0.5)
+
+        s2_fn = IC.get_transformed_s_fn(ic, s_fn)
+        s2 = s2_fn(model.params, scaling_factors, inputs)
 
         cri = [s.shape == s2.shape, jnp.all(jnp.isclose(s + ic_value, s2))]
         assert all(cri)

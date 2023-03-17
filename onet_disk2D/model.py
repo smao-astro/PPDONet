@@ -215,7 +215,7 @@ def build_model(
         z_net.build()
         model = jaxphyinf.model.TriDeepONet(u_net, y_net, z_net)
     else:
-        # [2022.05.30] output transform can be do outside this function
+        # [2022.05.30] output transform can be done outside this function
         model = jaxphyinf.model.DeepONet(u_net, y_net)
 
     return model

@@ -20,10 +20,10 @@ class DataDict(TypedDict):
 
 def load_last_frame_data(data_dir, unknown, parameter=None):
     """
-
-    Returns:
-        data: One of ('sigma', 'v_r', 'v_theta') of xr.DataArray, the data is load lazily. call `release_data` when you finish use them.
-        fargo_setups: dict of fargo_setups, all values are of type string.
+    Args:
+        data_dir: Path to the data directory.
+        unknown: One of {'log_sigma', 'sigma', 'v_r', 'v_theta'}. If 'log_sigma', the data is transformed to log10(sigma).
+        parameter: List of parameter names, all in uppercase. This is to check if the data is consistent with name of parameters from the commmand line input.
 
     """
     data_dir = pathlib.Path(data_dir)
@@ -55,7 +55,7 @@ def extract_variable_parameters_name(single_data) -> List[str]:
         single_data: One of 'sigma', 'v_r', 'v_theta'
 
     Returns:
-
+        p_names: sorted list of parameter names, all in uppercase.
     """
     p_names = sorted(set(single_data.coords) - set(single_data.dims))
     return p_names
@@ -64,14 +64,10 @@ def extract_variable_parameters_name(single_data) -> List[str]:
 class DataIterLoader:
     """dataloader implemented from scratch, do not support multi-processing."""
 
-    def __init__(self, data, batch_size, fixed_parameters, key=123):
+    def __init__(self, data, batch_size, key=123):
         """
 
         Args:
-            parameter_names:
-                Names are in uppercase
-            fargo_setups:
-                Names are in lowercase
             data:
             batch_size:
             key:
@@ -82,7 +78,6 @@ class DataIterLoader:
         self.phys_var_type, self.data = data[0]
 
         self.batch_size = batch_size
-        self.fixed_parameters = fixed_parameters
         self.Nu = len(self.data["run"])
         self.n_batch = self.Nu // self.batch_size
 
@@ -117,19 +112,9 @@ class DataIterLoader:
         # load data
         # u shape: (Nu, 1) y shape: (Nr, Ntheta, 2) s shape (Nu, Nr, Ntheta, 1)
         data = self.data.isel(**{"run": batch_index})
-        parameters = {
-            p.lower(): jnp.array(data[p].values[..., None])
-            for p in self.parameter_names
-        }
-        parameters.update(
-            {
-                p: jnp.full((len(batch_index), 1), fill_value=v)
-                for p, v in self.fixed_parameters.items()
-            }
-        )
 
         data = {self.phys_var_type: to_datadict(data)}
-        return parameters, data
+        return data
 
 
 def to_datadict(data: xr.DataArray) -> DataDict:
