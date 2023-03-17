@@ -6,6 +6,7 @@ import onet_disk2D.callbacks
 import onet_disk2D.constraints
 import onet_disk2D.data
 from .job import Train
+import sklearn.model_selection
 
 
 class DataTrain(Train):
@@ -37,21 +38,15 @@ class DataTrain(Train):
                 a dict of xr.DataArray for training
                     key: One of log_sigma, sigma, v_r, v_theta
         """
-        n_total = len(self.data[self.args["unknown"]]["run"])
-        n_train = n_total * self.args["train_sample_percent"]
-        if not n_train.is_integer():
-            print(
-                "Warning: data can not be split into train-val data.",
-                f"train_sample_percent = {self.args['train_sample_percent']}",
-            )
-            print(f"n_total = {n_total}, n_train = {n_train} -> {int(n_train)}")
-        n_train = int(n_train)
-        train_run_index = np.linspace(0, n_total - 1, n_train, dtype=np.int32)
-        val_run_index = [i for i in np.arange(n_total) if i not in train_run_index]
-        train_data = {
-            k: v.isel(**{"run": train_run_index}) for k, v in self.data.items()
-        }
-        val_data = {k: v.isel(**{"run": val_run_index}) for k, v in self.data.items()}
+        run = self.data[self.args["unknown"]]["run"].values
+        train_run, val_run = sklearn.model_selection.train_test_split(
+            run,
+            train_size=self.args["train_sample_percent"],
+            random_state=self.args["key"],
+            shuffle=True,
+        )
+        train_data = {k: v.sel(run=train_run) for k, v in self.data.items()}
+        val_data = {k: v.sel(run=val_run) for k, v in self.data.items()}
         return train_data, val_data
 
     @functools.cached_property
