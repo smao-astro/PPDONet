@@ -22,15 +22,6 @@ def get_parser():
         help="Percentage of training samples in the whole dataset. (1-`train_sample_percent`) is the percentage of validation samples.",
     )
     parser.add_argument("--batch_size_data", type=int, default=4)
-    parser.add_argument(
-        "--data_loss_weighting",
-        type=str,
-        default="",
-        choices=["", "diff2", "mag"],
-        help="Assigning weights for different data points (on grids)."
-        # The choice `diff2` weights residuals by (s_data-s_ic)**2."
-        # The choice `mag` balances the importance of fargo runs by the magnitudes of fargo features.
-    )
 
     return parser
 

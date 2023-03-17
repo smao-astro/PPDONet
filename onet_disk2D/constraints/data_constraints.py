@@ -51,76 +51,12 @@ class DataLoss:
         return f
 
 
-class WeightedDataLoss(DataLoss):
-    def __init__(self, s_fn, ic_fn, data_loss_weighting: str, **kwargs):
-        super(WeightedDataLoss, self).__init__(
-            s_fn=s_fn,
-            **kwargs,
-        )
-        self.ic_fn = ic_fn
-        self.data_loss_weighting = data_loss_weighting
-        self.low = 1.0
-        self.high = 10.0
-
-    @functools.cached_property
-    def diff2_fn(self):
-        """Weighting residuals by (s-s_ic)**2
-
-        The weights are positively related to the divergence of ground truths from backgrounds.
-        """
-
-        @jax.jit
-        def f(data):
-            s_ic = self.ic_fn(data["inputs"]["u_net"], data["inputs"]["y_net"])
-            diff = (data["s"] - s_ic) ** 2
-            width = jnp.max(diff, axis=-1, keepdims=True)
-            diff = 50.0 * diff / width
-            return (self.high - self.low) * (1 - jnp.exp(-diff)) + self.low
-
-        return f
-
-    @functools.cached_property
-    def mag_fn(self):
-        @jax.jit
-        def f(data):
-            s_ic = self.ic_fn(data["inputs"]["u_net"], data["inputs"]["y_net"])
-            # The squared values might be too large. -> Take square-root.
-            mag = jnp.mean((data["s"] - s_ic) ** 2, axis=-1, keepdims=True)
-            w = 1.0 / mag
-            # w = w / jnp.sum(w)
-            return w
-
-        return f
-
-    @functools.cached_property
-    def w_fn(self):
-        if self.data_loss_weighting == "diff2":
-            return self.diff2_fn
-        elif self.data_loss_weighting == "mag":
-            return self.mag_fn
-        else:
-            raise NotImplementedError
-
-    @functools.cached_property
-    def loss_fn(self):
-        @jax.jit
-        def f(*args):
-            data = args[-1]
-            w = self.w_fn(data)
-            res2 = w * self.res_fn(*args) ** 2
-            return jnp.mean(res2)
-
-        return f
-
-
 class DataConstraints(jaxphyinf.constraints.Constraints):
     def __init__(
         self,
         s_pred_fn,
         unknown,
         dataloader,
-        ic=None,
-        data_loss_weighting="",
         **kwargs,
     ):
         """
@@ -130,15 +66,12 @@ class DataConstraints(jaxphyinf.constraints.Constraints):
             unknown: One of {'log_sigma', 'sigma', 'v_r', 'v_theta'}
             dataloader:
             ic: dict, One of {ic_sigma, ic_v_r, ic_v_theta}
-            data_loss_weighting: '', 'diff2', 'mag',
             **kwargs:
         """
         super(DataConstraints, self).__init__(s_pred_fn=s_pred_fn, **kwargs)
         self.s_pred_fn = s_pred_fn
         self.unknown = unknown
         self.dataloader = dataloader
-        self.ic = ic
-        self.data_loss_weighting = data_loss_weighting
         self.data = iter(self.dataloader)
 
     def samplers(self):
@@ -146,30 +79,19 @@ class DataConstraints(jaxphyinf.constraints.Constraints):
 
     @functools.cached_property
     def dataloss(self):
-        if not self.data_loss_weighting:
-            loss = {"data_" + self.unknown: DataLoss(self.s_pred_fn)}
-        elif self.data_loss_weighting in ["diff2", "mag"]:
-            if self.unknown == "log_sigma":
-                raise NotImplementedError
-            loss = {
-                "data_"
-                + self.unknown: WeightedDataLoss(
-                    s_fn=self.s_pred_fn,
-                    ic_fn=self.ic.func,
-                    data_loss_weighting=self.data_loss_weighting,
-                )
-            }
-        else:
-            raise NotImplementedError
+        """
 
-        return loss
+        Returns:
+            A dict, key is data_ + unknown
+        """
+        return {"data_" + self.unknown: DataLoss(self.s_pred_fn)}
 
     @functools.cached_property
     def loss_fn(self):
         """
 
         Returns:
-            A dict, key is one of {'log_sigma', 'sigma', 'v_r', 'v_theta'}
+            A dict, key is data_ + unknown
         """
         fn = super(DataConstraints, self).loss_fn
         # the last arguments: data {inputs: {u_net, y_net}, s}
@@ -181,7 +103,7 @@ class DataConstraints(jaxphyinf.constraints.Constraints):
         """
 
         Returns:
-            A dict, key is one of {'log_sigma', 'sigma', 'v_r', 'v_theta'}
+            A dict, key is data_ + unknown
         """
         fn = super(DataConstraints, self).res_fn
         # the last arguments: data {inputs: {u_net, y_net}, s}

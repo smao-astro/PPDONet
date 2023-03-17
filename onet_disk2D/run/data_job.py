@@ -70,8 +70,6 @@ class DataTrain(Train):
             s_pred_fn=self.s_pred_fn,
             unknown=self.args["unknown"],
             dataloader=self.data_loader,
-            ic=self.ic,
-            data_loss_weighting=self.args["data_loss_weighting"],
         )
 
     @functools.cached_property

@@ -8,20 +8,7 @@ import onet_disk2D.data
 import onet_disk2D.run.job
 
 SINGLEP_DATAPATH = "data/singlep"
-SINGLEP_FIXEDP = {
-    "sigma0": 1.0,
-    "nu": 1e-5,
-    "sigmaslope": 0.0,
-    "flaringindex": 0.0,
-    "aspectratio": 0.05,
-}
 MULTIP_DATAPATH = "data/multip"
-MULTIP_FIXEDP = {
-    "sigma0": 1.0,
-    "nu": 1e-5,
-    "sigmaslope": 0.0,
-    "flaringindex": 0.0,
-}
 
 
 @pytest.mark.parametrize(
