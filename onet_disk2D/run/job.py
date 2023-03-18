@@ -16,6 +16,7 @@ import onet_disk2D.data
 import onet_disk2D.grids
 import onet_disk2D.model
 import onet_disk2D.physics
+import onet_disk2D.gradients
 
 
 def resolve_save_dir(save_dir, file_list, verbose=True):
@@ -557,12 +558,12 @@ class Train(JOB):
 
     def compute_total_g(self):
         if self.args["g_compute_method"] == "sum":
-            return jaxphyinf.gradients.sum_gradients(list(self.gs.values()))
+            return onet_disk2D.gradients.sum_gradients(list(self.gs.values()))
         elif self.args["g_compute_method"] in [
             "ntk_weighted_sum",
             "initial_loss_weighted_sum",
         ]:
-            return jaxphyinf.gradients.sum_weighted_gradients(
+            return onet_disk2D.gradients.sum_weighted_gradients(
                 self.gs, self.loss_weights
             )
         else:
