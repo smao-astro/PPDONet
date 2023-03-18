@@ -1,4 +1,3 @@
-import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
@@ -230,7 +229,6 @@ class TestDeepONet:
         ]
         assert all(cri)
 
-
     def test_scaling_transform(
         self, deeponet: onet_disk2D.model.DeepONet, multi_u_inputs
     ):
@@ -250,6 +248,7 @@ class TestDeepONet:
         ]
 
         assert all(cri)
+
 
 class TestTriDeepONet:
     @pytest.fixture
@@ -381,6 +380,7 @@ class TestTriDeepONet:
         ]
 
         assert all(cri)
+
 
 def test_get_period_transform():
     assert False

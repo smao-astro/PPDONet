@@ -1,12 +1,11 @@
 import functools
 
-import numpy as np
+import sklearn.model_selection
 
 import onet_disk2D.callbacks
 import onet_disk2D.constraints
 import onet_disk2D.data
 from .job import Train
-import sklearn.model_selection
 
 
 class DataTrain(Train):
