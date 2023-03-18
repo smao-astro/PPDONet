@@ -389,7 +389,7 @@ def get_input_transform(funcs):
 
 
 def get_input_normalization(u_min, u_max):
-    # todo why not jax.jit here?
+    @jax.jit
     def transform(inputs):
         mid = (u_min + u_max) / 2.0
         return 2.0 * (inputs - mid) / (u_max - u_min)
