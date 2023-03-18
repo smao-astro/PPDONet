@@ -191,7 +191,7 @@ class TestModel:
             Nnode=n_node,
         )
         scaling_factors = {"scaling_factors": jnp.array(10.0)}
-        s_fn = jaxphyinf.model.outputs_scaling_transform(model.forward_apply)[0]
+        s_fn = onet_disk2D.model.outputs_scaling_transform(model.forward_apply)[0]
         s = s_fn(model.params, scaling_factors, inputs)
         sigma0 = 1.0
         sigmaslope = 0.5
