@@ -2,7 +2,6 @@ import pathlib
 
 import jax.numpy as jnp
 import jax.random
-import jaxphyinf.model
 import pytest
 
 import onet_disk2D.constraints

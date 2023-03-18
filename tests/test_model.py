@@ -1,5 +1,5 @@
+import jax
 import jax.numpy as jnp
-import jaxphyinf.model
 import numpy as np
 import pytest
 
@@ -7,7 +7,390 @@ import onet_disk2D.model
 import onet_disk2D.physics.initial_condition as IC
 
 
-class TestModel:
+class TestMLPONet:
+    @pytest.fixture
+    def activation(self):
+        return onet_disk2D.model.get_activation("tanh")
+
+    @pytest.fixture
+    def initializer(self):
+        return onet_disk2D.model.get_initializer("glorot_uniform")
+
+    @pytest.fixture
+    def Nx(self):
+        return 3
+
+    @pytest.fixture
+    def Nu(self):
+        return 7
+
+    @pytest.fixture
+    def Ny(self):
+        return 11
+
+    @pytest.fixture
+    def Ndim(self):
+        return 1
+
+    @pytest.fixture
+    def mlponet(self, Nx, Ndim, activation, initializer):
+        net = onet_disk2D.model.MLPSingleONet(
+            Nx,
+            Ndim,
+            [10, 20],
+            activation,
+            initializer,
+        )
+        net.build()
+
+        return net
+
+    @pytest.fixture
+    def single_u_inputs(self, Nx, Ny, Ndim):
+        u = jnp.arange(Nx, dtype=jnp.float32)
+        y = jnp.stack([jnp.arange(Ny, dtype=jnp.float32)] * Ndim, axis=-1)
+        return {"u_net": u, "y_net": y}
+
+    @pytest.fixture
+    def multi_u_inputs(self, Ny, Nu, Nx, Ndim):
+        u = jnp.arange(Nx, dtype=jnp.float32)
+        u = jnp.stack([u] * Nu)
+        y = jnp.stack([jnp.arange(Ny, dtype=jnp.float32)] * Ndim, axis=-1)
+        return {"u_net": u, "y_net": y}
+
+    @pytest.fixture
+    def multi_u_y_inputs(self, Ny, Nu, Nx, Ndim):
+        u = jnp.arange(Nx, dtype=jnp.float32)
+        u = jnp.stack([u] * Nu)
+        y = jnp.stack([jnp.arange(Ny, dtype=jnp.float32)] * Ndim, axis=-1)
+        y = jnp.stack([y] * Nu)
+        return {"u_net": u, "y_net": y}
+
+    def test_inputs_shape(
+        self, Nu, Ny, Nx, Ndim, single_u_inputs, multi_u_inputs, multi_u_y_inputs
+    ):
+        cri = [
+            single_u_inputs["u_net"].shape == (Nx,),
+            single_u_inputs["y_net"].shape == (Ny, Ndim),
+            multi_u_inputs["u_net"].shape == (Nu, Nx),
+            multi_u_inputs["y_net"].shape == (Ny, Ndim),
+            multi_u_y_inputs["u_net"].shape == (Nu, Nx),
+            multi_u_y_inputs["y_net"].shape == (Nu, Ny, Ndim),
+        ]
+        assert all(cri)
+
+    def test_direct_apply(
+        self,
+        Nu,
+        Ny,
+        Nx,
+        Ndim,
+        single_u_inputs,
+        multi_u_inputs,
+        multi_u_y_inputs,
+        mlponet,
+    ):
+        s_fn = mlponet.forward_apply
+        single_u_s = s_fn(mlponet.params, single_u_inputs)
+        multi_u_s = s_fn(mlponet.params, multi_u_inputs)
+        multi_u_y_s = s_fn(mlponet.params, multi_u_y_inputs)
+        cri = [
+            single_u_s.shape == (Ny,),
+            multi_u_s.shape == (Nu, Ny),
+            multi_u_y_s.shape == (Nu, Ny),
+        ]
+        assert all(cri)
+
+    def test_scaling_transform(
+        self, mlponet: onet_disk2D.model.MLPSingleONet, multi_u_inputs
+    ):
+        s1 = mlponet.forward_apply(mlponet.params, multi_u_inputs)
+
+        scaling_factors = {"scaling_factors": jnp.array([10.0])}
+        s2_fn, s2_a_fn = onet_disk2D.model.outputs_scaling_transform(
+            mlponet.forward_apply
+        )
+
+        s2 = s2_fn(mlponet.params, scaling_factors, multi_u_inputs)
+        s2_, a = s2_a_fn(mlponet.params, scaling_factors, multi_u_inputs)
+
+        cri = [
+            jnp.all(jnp.isclose(s1 * 10, s2)),
+            jnp.array_equal(s2, s2_),
+        ]
+
+        assert all(cri)
+
+
+class TestDeepONet:
+    @pytest.fixture
+    def activation(self):
+        return onet_disk2D.model.get_activation("tanh")
+
+    @pytest.fixture
+    def initializer(self):
+        return onet_disk2D.model.get_initializer("glorot_uniform")
+
+    @pytest.fixture
+    def Nx(self):
+        return 3
+
+    @pytest.fixture
+    def Nu(self):
+        return 7
+
+    @pytest.fixture
+    def Ny(self):
+        return 11
+
+    @pytest.fixture
+    def Ndim(self):
+        return 1
+
+    @pytest.fixture
+    def Nnode(self):
+        return 10
+
+    @pytest.fixture
+    def deeponet(self, activation, initializer, Nx, Ndim, Nnode):
+        u_net = onet_disk2D.model.MLP(
+            inputs_dim=Nx,
+            outputs_dim=Nnode,
+            layer_size=[10, 20],
+            activation=activation,
+            w_init=initializer,
+        )
+        u_net.build()
+        y_net = onet_disk2D.model.MLP(
+            inputs_dim=Ndim,
+            outputs_dim=Nnode,
+            layer_size=[30, 40],
+            activation=activation,
+            w_init=initializer,
+        )
+        y_net.build()
+
+        net = onet_disk2D.model.DeepONet(u_net, y_net)
+
+        return net
+
+    @pytest.fixture
+    def single_u_inputs(self, Nx, Ny, Ndim):
+        u = jnp.arange(Nx, dtype=jnp.float32)
+        y = jnp.stack([jnp.arange(Ny, dtype=jnp.float32)] * Ndim, axis=-1)
+        return {"u_net": u, "y_net": y}
+
+    @pytest.fixture
+    def multi_u_inputs(self, Ny, Nu, Nx, Ndim):
+        u = jnp.arange(Nx, dtype=jnp.float32)
+        u = jnp.stack([u] * Nu)
+        y = jnp.stack([jnp.arange(Ny, dtype=jnp.float32)] * Ndim, axis=-1)
+        return {"u_net": u, "y_net": y}
+
+    @pytest.fixture
+    def multi_u_y_inputs(self, Ny, Nu, Nx, Ndim):
+        u = jnp.arange(Nx, dtype=jnp.float32)
+        u = jnp.stack([u] * Nu)
+        y = jnp.stack([jnp.arange(Ny, dtype=jnp.float32)] * Ndim, axis=-1)
+        y = jnp.stack([y] * Nu)
+        return {"u_net": u, "y_net": y}
+
+    def test_inputs_shape(
+        self, Nu, Ny, Nx, Ndim, single_u_inputs, multi_u_inputs, multi_u_y_inputs
+    ):
+        cri = [
+            single_u_inputs["u_net"].shape == (Nx,),
+            single_u_inputs["y_net"].shape == (Ny, Ndim),
+            multi_u_inputs["u_net"].shape == (Nu, Nx),
+            multi_u_inputs["y_net"].shape == (Ny, Ndim),
+            multi_u_y_inputs["u_net"].shape == (Nu, Nx),
+            multi_u_y_inputs["y_net"].shape == (Nu, Ny, Ndim),
+        ]
+        assert all(cri)
+
+    def test_direct_apply(
+        self,
+        Nu,
+        Ny,
+        Nx,
+        Ndim,
+        single_u_inputs,
+        multi_u_inputs,
+        multi_u_y_inputs,
+        deeponet,
+    ):
+        s_fn = deeponet.forward_apply
+        single_u_s = s_fn(deeponet.params, single_u_inputs)
+        multi_u_s = s_fn(deeponet.params, multi_u_inputs)
+        multi_u_y_s = s_fn(deeponet.params, multi_u_y_inputs)
+        cri = [
+            single_u_s.shape == (Ny,),
+            multi_u_s.shape == (Nu, Ny),
+            multi_u_y_s.shape == (Nu, Ny),
+        ]
+        assert all(cri)
+
+
+    def test_scaling_transform(
+        self, deeponet: onet_disk2D.model.DeepONet, multi_u_inputs
+    ):
+        s1 = deeponet.forward_apply(deeponet.params, multi_u_inputs)
+
+        scaling_factors = {"scaling_factors": jnp.array([10.0])}
+        s2_fn, s2_a_fn = onet_disk2D.model.outputs_scaling_transform(
+            deeponet.forward_apply
+        )
+
+        s2 = s2_fn(deeponet.params, scaling_factors, multi_u_inputs)
+        s2_, a = s2_a_fn(deeponet.params, scaling_factors, multi_u_inputs)
+
+        cri = [
+            jnp.all(jnp.isclose(s1 * 10, s2)),
+            jnp.array_equal(s2, s2_),
+        ]
+
+        assert all(cri)
+
+class TestTriDeepONet:
+    @pytest.fixture
+    def Nx(self):
+        return 3
+
+    @pytest.fixture
+    def Nu(self):
+        return 7
+
+    @pytest.fixture
+    def Ny(self):
+        return 11
+
+    @pytest.fixture
+    def Ndim(self):
+        return 1
+
+    @pytest.fixture
+    def Nnode(self):
+        return 10
+
+    @pytest.fixture
+    def deeponet(self, Nx, Ndim, Nnode):
+        activation = onet_disk2D.model.get_activation("tanh")
+        initializer = onet_disk2D.model.get_initializer("glorot_uniform")
+
+        u_net = onet_disk2D.model.MLP(
+            inputs_dim=Nx,
+            outputs_dim=Nnode,
+            layer_size=[10, 20],
+            activation=activation,
+            w_init=initializer,
+        )
+        u_net.build()
+        y_net = onet_disk2D.model.MLP(
+            inputs_dim=Ndim,
+            outputs_dim=Nnode,
+            layer_size=[30, 40],
+            activation=activation,
+            w_init=initializer,
+        )
+        y_net.build()
+        z_net = onet_disk2D.model.MLP(
+            inputs_dim=Nnode,
+            outputs_dim=1,
+            layer_size=[5],
+            activation=activation,
+            w_init=initializer,
+        )
+        z_net.build()
+
+        net = onet_disk2D.model.TriDeepONet(u_net, y_net, z_net)
+
+        return net
+
+    @pytest.fixture
+    def single_u_inputs(self, Nx, Ny, Ndim):
+        u = jnp.arange(Nx, dtype=jnp.float32)
+        y = jnp.stack([jnp.arange(Ny, dtype=jnp.float32)] * Ndim, axis=-1)
+        return {"u_net": u, "y_net": y}
+
+    @pytest.fixture
+    def multi_u_inputs(self, Ny, Nu, Nx, Ndim):
+        u = jnp.arange(Nx, dtype=jnp.float32)
+        u = jnp.stack([u] * Nu)
+        y = jnp.stack([jnp.arange(Ny, dtype=jnp.float32)] * Ndim, axis=-1)
+        return {"u_net": u, "y_net": y}
+
+    @pytest.fixture
+    def multi_u_y_inputs(self, Ny, Nu, Nx, Ndim):
+        u = jnp.arange(Nx, dtype=jnp.float32)
+        u = jnp.stack([u] * Nu)
+        y = jnp.stack([jnp.arange(Ny, dtype=jnp.float32)] * Ndim, axis=-1)
+        y = jnp.stack([y] * Nu)
+        return {"u_net": u, "y_net": y}
+
+    def test_inputs_shape(
+        self, Nu, Ny, Nx, Ndim, single_u_inputs, multi_u_inputs, multi_u_y_inputs
+    ):
+        cri = [
+            single_u_inputs["u_net"].shape == (Nx,),
+            single_u_inputs["y_net"].shape == (Ny, Ndim),
+            multi_u_inputs["u_net"].shape == (Nu, Nx),
+            multi_u_inputs["y_net"].shape == (Ny, Ndim),
+            multi_u_y_inputs["u_net"].shape == (Nu, Nx),
+            multi_u_y_inputs["y_net"].shape == (Nu, Ny, Ndim),
+        ]
+        assert all(cri)
+
+    def test_direct_apply(
+        self,
+        Nu,
+        Ny,
+        Nx,
+        Ndim,
+        single_u_inputs,
+        multi_u_inputs,
+        multi_u_y_inputs,
+        deeponet,
+    ):
+        s_fn = deeponet.forward_apply
+        single_u_s = s_fn(deeponet.params, single_u_inputs)
+        multi_u_s = s_fn(deeponet.params, multi_u_inputs)
+        multi_u_y_s = s_fn(deeponet.params, multi_u_y_inputs)
+        cri = [
+            single_u_s.shape == (Ny,),
+            multi_u_s.shape == (Nu, Ny),
+            multi_u_y_s.shape == (Nu, Ny),
+        ]
+        assert all(cri)
+
+    def test_scaling_transform(
+        self, deeponet: onet_disk2D.model.TriDeepONet, multi_u_inputs
+    ):
+        s1 = deeponet.forward_apply(deeponet.params, multi_u_inputs)
+
+        scaling_factors = {"scaling_factors": jnp.array([10.0])}
+        s2_fn, s2_a_fn = onet_disk2D.model.outputs_scaling_transform(
+            deeponet.forward_apply
+        )
+
+        s2 = s2_fn(deeponet.params, scaling_factors, multi_u_inputs)
+        s2_, a = s2_a_fn(deeponet.params, scaling_factors, multi_u_inputs)
+
+        cri = [
+            jnp.all(jnp.isclose(s1 * 10, s2)),
+            jnp.array_equal(s2, s2_),
+        ]
+
+        assert all(cri)
+
+def test_get_period_transform():
+    assert False
+
+
+def test_get_input_transform():
+    assert False
+
+
+class TestBuildModel:
     @pytest.fixture
     def u_net_layer_size(self):
         return [10, 20]
@@ -55,30 +438,6 @@ class TestModel:
         )
         s = model.forward_apply(model.params, inputs)
         assert s.shape == (inputs["u_net"].shape[0], inputs["y_net"].shape[0])
-
-    def test_output_transform_model(
-        self, u_net_layer_size, y_net_layer_size, n_node, inputs
-    ):
-        def out_fn(outputs, inputs):
-            return outputs * 10.0
-
-        io_transform = jaxphyinf.model.input_output_transform(
-            None, output_transform=out_fn
-        )
-
-        model = onet_disk2D.model.build_model(
-            Nnode=n_node,
-            u_net_layer_size=u_net_layer_size,
-            y_net_layer_size=y_net_layer_size,
-        )
-
-        s_fn = model.forward_apply
-        s = s_fn(model.params, inputs)
-
-        s2_fn = io_transform(model.forward_apply)
-        s2 = s2_fn(model.params, inputs)
-
-        assert jnp.all(jnp.isclose(s * 10.0, s2))
 
     def test_periodic_transform_model(
         self, u_net_layer_size, y_net_layer_size, n_node, inputs

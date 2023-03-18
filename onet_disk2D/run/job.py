@@ -5,7 +5,6 @@ import pathlib
 import fargo_utils.par
 import jax
 import jax.numpy as jnp
-import jaxphyinf.model
 import numpy as np
 import optax
 import tqdm
@@ -17,7 +16,6 @@ import onet_disk2D.data
 import onet_disk2D.grids
 import onet_disk2D.model
 import onet_disk2D.physics
-import onet_disk2D.model_io
 
 
 def resolve_save_dir(save_dir, file_list, verbose=True):
@@ -288,8 +286,8 @@ class JOB:
 
         """
         # load params
-        self.model.params = onet_disk2D.model_io.load_params(model_dir)
-        self.state = onet_disk2D.model_io.load_state(model_dir)
+        self.model.params = onet_disk2D.model.load_params(model_dir)
+        self.state = onet_disk2D.model.load_state(model_dir)
 
         # save_dir
         if save_dir:
@@ -376,8 +374,8 @@ class JOB:
         if model_dir:
             # load model from files and overwrite current model
             print(f"Loading trained model from {model_dir}")
-            self.model.params = onet_disk2D.model_io.load_params(model_dir)
-            self.state = onet_disk2D.model_io.load_state(model_dir)
+            self.model.params = onet_disk2D.model.load_params(model_dir)
+            self.state = onet_disk2D.model.load_state(model_dir)
         else:
             # do not overwrite current model
             model_dir = "."

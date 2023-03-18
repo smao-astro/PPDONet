@@ -3,13 +3,13 @@ import typing
 
 import jax
 import jax.numpy as jnp
-import numpy as np
-import onet_disk2D.model_io
 import matplotlib.pyplot as plt
+import numpy as np
 import xarray as xr
 import yaml
 
 import onet_disk2D.data
+import onet_disk2D.model
 
 
 class Callback:
@@ -342,8 +342,8 @@ class ModelSaver(Callback):
                 save_dir.mkdir()
         else:
             save_dir = self.job.save_dir
-        onet_disk2D.model_io.save_params(self.job.model.params, save_dir=save_dir)
-        onet_disk2D.model_io.save_state(self.job.state, save_dir=save_dir)
+        onet_disk2D.model.save_params(self.job.model.params, save_dir=save_dir)
+        onet_disk2D.model.save_state(self.job.state, save_dir=save_dir)
 
     def on_train_batch_end(self, i_steps, i_steps_total):
         if i_steps_total % self.period == 0:
