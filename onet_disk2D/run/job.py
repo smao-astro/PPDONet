@@ -2,7 +2,6 @@ import argparse
 import functools
 import pathlib
 
-import fargo_utils.par
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -13,10 +12,10 @@ import yaml
 
 import onet_disk2D.callbacks
 import onet_disk2D.data
+import onet_disk2D.gradients
 import onet_disk2D.grids
 import onet_disk2D.model
 import onet_disk2D.physics
-import onet_disk2D.gradients
 
 
 def resolve_save_dir(save_dir, file_list, verbose=True):
@@ -54,7 +53,7 @@ def load_fargo_setups(fargo_setups_file):
         planet_config = onet_disk2D.physics.read_planet_config(cfg_file)
 
         # update omegaframe, see fargo3d's docs for more explanations.
-        fargo_setups["omegaframe"] = fargo_utils.par.get_frame_angular_velocity(
+        fargo_setups["omegaframe"] = onet_disk2D.physics.get_frame_angular_velocity(
             frame=fargo_setups["frame"],
             omegaframe=float(fargo_setups["omegaframe"]),
             planet_distance=planet_config["Distance"],
