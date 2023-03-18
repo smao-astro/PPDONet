@@ -12,7 +12,8 @@ import functools
 
 import jax
 import jax.numpy as jnp
-import jaxphyinf.constraints
+
+from .constraints import Constraints
 
 
 class DataLoss:
@@ -51,7 +52,7 @@ class DataLoss:
         return f
 
 
-class DataConstraints(jaxphyinf.constraints.Constraints):
+class DataConstraints(Constraints):
     def __init__(
         self,
         s_pred_fn,
