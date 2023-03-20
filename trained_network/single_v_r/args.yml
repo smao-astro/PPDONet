@@ -1,5 +1,5 @@
 Nnode: 50
-activation: stan
+activation: tanh
 arg_groups_file: arg_groups.yml
 batch_size_data: 32
 data_dir: .
