@@ -371,14 +371,10 @@ class JOB:
         """
         data = data[self.args["unknown"]]
 
-        if model_dir:
-            # load model from files and overwrite current model
-            print(f"Loading trained model from {model_dir}")
-            self.model.params = onet_disk2D.model.load_params(model_dir)
-            self.state = onet_disk2D.model.load_state(model_dir)
-        else:
-            # do not overwrite current model
-            model_dir = "."
+        # load model from files and overwrite current model
+        print(f"Loading trained model from {model_dir}")
+        self.model.params = onet_disk2D.model.load_params(model_dir)
+        self.state = onet_disk2D.model.load_state(model_dir)
 
         # save_dir
         if save_dir:
@@ -386,7 +382,8 @@ class JOB:
             if not save_dir.exists():
                 save_dir.mkdir()
         else:
-            # save to train dir
+            # Warning: try to avoid unclear save_dir unless you know what you are doing
+            # This is useful when working with guild.ai: you can save the results to the dir of onet:data_train
             save_dir = resolve_save_dir(model_dir, ["params.npy", "params_struct.pkl"])
         print(f"Test result saved to {save_dir}")
 

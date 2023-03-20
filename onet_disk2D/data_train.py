@@ -30,5 +30,5 @@ if __name__ == "__main__":
     args = get_parser().parse_args()
     job = onet_disk2D.run.DataTrain(args)
     job.train()
-    job.test(job.train_data, data_type="train")
-    job.test(job.val_data, data_type="val")
+    job.test(job.train_data, data_type="train", model_dir=job.save_dir)
+    job.test(job.val_data, data_type="val", model_dir=job.save_dir)
