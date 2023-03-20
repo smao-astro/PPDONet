@@ -1,0 +1,54 @@
+Nnode: 50
+activation: stan
+arg_groups_file: arg_groups.yml
+batch_size_data: 32
+data_dir: .
+decay_rate: 0.9
+fargo_setups: fargo_setups.yml
+g_compute_method: initial_loss_weighted_sum
+ic_shift: 'ON'
+initializer: glorot_normal
+key: 9999
+lr: 0.0005
+mlp_layer_size: []
+optimizer: adam
+parameter:
+- ALPHA
+- ASPECTRATIO
+- PLANETMASS
+save_dir: .
+scale_on_s: 0.003
+steps: 100000
+steps_per_dump_log: 2000
+steps_per_log: 100
+steps_per_log_out_mag: 1000
+steps_per_resample: 3
+steps_per_save_model: 2000
+train_sample_percent: 0.875
+transition_steps: 2000
+u_max:
+- -1.0
+- 0.1
+- -2.7
+u_min:
+- -3.52
+- 0.05
+- -4.3
+u_net_layer_size:
+- 100
+- 100
+- 100
+- 100
+u_transform:
+- log10
+- ''
+- log10
+unknown: v_theta
+y_net_layer_size:
+- 256
+- 256
+- 256
+- 256
+- 256
+z_net_layer_size:
+- 100
