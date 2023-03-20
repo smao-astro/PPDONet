@@ -23,7 +23,8 @@ def get_parser():
         "--model_dir",
         type=str,
         default="",
-        help="Directory that store model files (params_struct.pkl, params.npy, etc).",
+        help="Directory that store model files (params_struct.pkl, params.npy, etc). "
+        "If empty, model_dir = run_dir. Use it for intermediate models in run_dir/xxx.",
     )
     # parameter
     parser.add_argument(
@@ -36,10 +37,18 @@ def get_parser():
         "--save_dir", type=str, default="", help="If empty, save to train directory."
     )
     # inputs
-    parser.add_argument("--ymin", type=float)
-    parser.add_argument("--ymax", type=float)
-    parser.add_argument("--ny", type=int, help="NY in fargo3d.")
-    parser.add_argument("--nx", type=int, help="NX in fargo3d.")
+    parser.add_argument("--radius_min", type=float)
+    parser.add_argument("--radius_max", type=float)
+    parser.add_argument(
+        "--num_cell_radial",
+        type=int,
+        help="Predicted image's radial resolution (NY in fargo3d).",
+    )
+    parser.add_argument(
+        "--num_cell_azimuthal",
+        type=int,
+        help="Predicted image's azimuthal resolution (NX in fargo3d).",
+    )
     parser.add_argument(
         "--name", type=str, default="", help="Name attribute for output file."
     )
@@ -76,9 +85,9 @@ if __name__ == "__main__":
         parameters=parameter_values,
         model_dir=model_dir,
         save_dir=predict_args.save_dir,
-        ymin=predict_args.ymin,
-        ymax=predict_args.ymax,
-        ny=predict_args.ny,
-        nx=predict_args.nx,
+        ymin=predict_args.radius_min,
+        ymax=predict_args.radius_max,
+        ny=predict_args.num_cell_radial,
+        nx=predict_args.num_cell_azimuthal,
         name=predict_args.name,
     )
