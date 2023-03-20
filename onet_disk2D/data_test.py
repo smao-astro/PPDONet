@@ -34,7 +34,10 @@ def get_parser():
         help="Directory that store model files (params_struct.pkl, params.npy, etc).",
     )
     parser.add_argument(
-        "--save_dir", type=str, default="", help="If empty, save to train directory."
+        "--save_dir",
+        type=str,
+        default="",
+        help="If empty, save to model_dir. See onet_disk2D.run.job.JOB.test for more details.",
     )
 
     return parser
