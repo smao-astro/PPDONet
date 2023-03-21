@@ -69,26 +69,30 @@ if __name__ == "__main__":
         model_dir = run_dir
 
     # load args from file
-    with (run_dir / test_args.args_file).open("r") as f:
-        train_args = yaml.safe_load(f)
+    job_args = onet_disk2D.run.load_job_args(
+        run_dir,
+        test_args.args_file,
+        test_args.arg_groups_file,
+        test_args.fargo_setup_file,
+    )
     # replace train_args["data_dir"] with local path
-    train_args["data_dir"] = test_args.data_dir
-    train_args["arg_groups_file"] = (run_dir / test_args.arg_groups_file).as_posix()
-    train_args["fargo_setups"] = (run_dir / test_args.fargo_setup_file).as_posix()
+    job_args["data_dir"] = test_args.data_dir
     # Warning: do not use train_args['save_dir']
 
-    job = onet_disk2D.run.DataTrain(train_args)
+    job = onet_disk2D.run.DataTrain(job_args)
+    job.load_model(model_dir)
+
+    save_dir = onet_disk2D.run.setup_save_dir(test_args.save_dir, model_dir)
+
 
     job.test(
         data=job.train_data,
         data_type="train",
-        model_dir=model_dir,
-        save_dir=test_args.save_dir,
+        save_dir=save_dir,
     )
 
     job.test(
         data=job.val_data,
         data_type="val",
-        model_dir=model_dir,
-        save_dir=test_args.save_dir,
+        save_dir=save_dir,
     )
