@@ -70,21 +70,24 @@ if __name__ == "__main__":
     else:
         model_dir = run_dir
 
-    # load args from file
-    with open(run_dir / predict_args.args_file, "r") as f:
-        train_args = yaml.safe_load(f)
-    train_args["arg_groups_file"] = (run_dir / predict_args.arg_groups_file).as_posix()
-    train_args["fargo_setups"] = (run_dir / predict_args.fargo_setup_file).as_posix()
+    job_args = onet_disk2D.run.load_job_args(
+        run_dir,
+        predict_args.args_file,
+        predict_args.arg_oups_file,
+        predict_args.fargo_setup_file,
+    )
 
-    job = onet_disk2D.run.JOB(train_args)
+    job = onet_disk2D.run.JOB(job_args)
+    job.load_model(model_dir)
+
+    save_dir = onet_disk2D.run.setup_save_dir(predict_args.save_dir, model_dir)
 
     # parameters
     parameter_values = get_parameter_values(predict_args.parameter_file)
 
     job.predict(
         parameters=parameter_values,
-        model_dir=model_dir,
-        save_dir=predict_args.save_dir,
+        save_dir=save_dir,
         ymin=predict_args.radius_min,
         ymax=predict_args.radius_max,
         ny=predict_args.num_cell_radial,

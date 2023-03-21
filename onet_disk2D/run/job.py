@@ -19,6 +19,10 @@ import onet_disk2D.physics
 
 
 def resolve_save_dir(save_dir, file_list, verbose=True):
+    """Resolve save_dir from file_list.
+
+    This is necessary for storing the results to a parent guild run.
+    """
     save_dir = pathlib.Path(save_dir)
     # resolve soft links
     for file in file_list:
@@ -30,6 +34,27 @@ def resolve_save_dir(save_dir, file_list, verbose=True):
 
     if verbose:
         print(f"save_dir={save_dir}")
+    return save_dir
+
+
+def setup_save_dir(save_dir, model_dir):
+    """Setup save_dir.
+
+    If save_dir is None or empty string, save to model_dir or the parent guild run.
+    """
+    # save_dir
+    if save_dir:
+        save_dir = pathlib.Path(save_dir)
+        if not save_dir.exists():
+            save_dir.mkdir()
+    else:
+        # save to train dir
+        save_dir = resolve_save_dir(
+            model_dir, ["params.npy", "params_struct.pkl"], verbose=False
+        )
+
+    print(f"save_dir={save_dir}")
+
     return save_dir
 
 
@@ -255,10 +280,15 @@ class JOB:
 
         return s_fn
 
+    def load_model(self, model_dir):
+        # load model from files and overwrite current model
+        print(f"Loading trained model from {model_dir}")
+        self.model.params = onet_disk2D.model.load_params(model_dir)
+        self.state = onet_disk2D.model.load_state(model_dir)
+
     def predict(
         self,
         parameters,
-        model_dir,
         save_dir,
         ymin=None,
         ymax=None,
@@ -273,7 +303,6 @@ class JOB:
             parameters: A dict of physics parameters
                 The keywords are in uppercase
                 values: shape (Nu, 1)
-            model_dir:
             save_dir:
             ymin:
             ymax:
@@ -285,18 +314,6 @@ class JOB:
         Returns:
 
         """
-        # load params
-        self.model.params = onet_disk2D.model.load_params(model_dir)
-        self.state = onet_disk2D.model.load_state(model_dir)
-
-        # save_dir
-        if save_dir:
-            save_dir = pathlib.Path(save_dir)
-            if not save_dir.exists():
-                save_dir.mkdir()
-        else:
-            # save to train dir
-            save_dir = resolve_save_dir(model_dir, ["params.npy", "params_struct.pkl"])
 
         ymin = ymin if ymin else float(self.fargo_setups["ymin"])
         ymax = ymax if ymax else float(self.fargo_setups["ymax"])
@@ -355,37 +372,19 @@ class JOB:
         self,
         data,
         data_type: str,
-        model_dir=None,
-        save_dir="",
+        save_dir,
     ):
         """
 
         Args:
             data: One of {sigma, v_r, v_theta}
             data_type: 'train', 'val', 'test' or 'train_and_val'
-            model_dir:
             save_dir:
 
         Returns:
 
         """
         data = data[self.args["unknown"]]
-
-        # load model from files and overwrite current model
-        print(f"Loading trained model from {model_dir}")
-        self.model.params = onet_disk2D.model.load_params(model_dir)
-        self.state = onet_disk2D.model.load_state(model_dir)
-
-        # save_dir
-        if save_dir:
-            save_dir = pathlib.Path(save_dir)
-            if not save_dir.exists():
-                save_dir.mkdir()
-        else:
-            # Warning: try to avoid unclear save_dir unless you know what you are doing
-            # This is useful when working with guild.ai: you can save the results to the dir of onet:data_train
-            save_dir = resolve_save_dir(model_dir, ["params.npy", "params_struct.pkl"])
-        print(f"Test result saved to {save_dir}")
 
         summary_dir = save_dir / "summary"
         if not summary_dir.exists():
@@ -580,6 +579,20 @@ class Train(JOB):
             self.callbacklist.on_train_batch_end(i_steps, i_steps)
 
         self.callbacklist.on_train_end()
+
+
+def load_job_args(run_dir, args_file, arg_groups_file, fargo_setup_file):
+    """Load args for restarting JOB from run_dir/args_file.
+
+    And update the path of arg_groups_file and fargo_setup_file.
+    """
+    run_dir = pathlib.Path(run_dir)
+    with open(run_dir / args_file, "r") as f:
+        job_args = yaml.safe_load(f)
+    job_args["arg_groups_file"] = (run_dir / arg_groups_file).as_posix()
+    job_args["fargo_setups"] = (run_dir / fargo_setup_file).as_posix()
+
+    return job_args
 
 
 def outliers_to_nan(array, a=10):
