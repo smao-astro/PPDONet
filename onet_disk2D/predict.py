@@ -64,7 +64,7 @@ if __name__ == "__main__":
     job_args = onet_disk2D.run.load_job_args(
         run_dir,
         predict_args.args_file,
-        predict_args.arg_oups_file,
+        predict_args.arg_groups_file,
         predict_args.fargo_setup_file,
     )
 
