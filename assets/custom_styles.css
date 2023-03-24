@@ -1,0 +1,36 @@
+/* Custom font sizes for different screen sizes */
+
+/* Extra small devices (portrait phones, less than 576px) */
+html {
+  font-size: 0.75rem;
+}
+
+/* Small devices (landscape phones, 576px and up) */
+@media (min-width: 576px) {
+  html {
+    font-size: 0.8rem;
+  }
+}
+
+/* Medium devices (tablets, 768px and up) */
+@media (min-width: 768px) {
+  html {
+    font-size: 0.85rem;
+  }
+}
+
+/* Large devices (desktops, 992px and up) */
+@media (min-width: 992px) {
+  html {
+    font-size: 1rem;
+  }
+}
+
+
+.app-container {
+  font-family: "Times New Roman", Times, serif;
+}
+/* for slider*/
+.rc-slider-mark-text {
+  font-size: 1.6em;
+}

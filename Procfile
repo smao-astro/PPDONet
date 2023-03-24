@@ -1,0 +1,1 @@
+web: gunicorn real_time_prediction_single_var:server
