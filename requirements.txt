@@ -1,6 +1,6 @@
-jax==0.3.13
-jaxlib==0.3.10
-dm-haiku==0.0.6
+jax>=0.3.13
+jaxlib>=0.3.10
+dm-haiku>=0.0.6
 optax==0.1.2
 xarray==2022.3.0
 PyYAML==6.0
