@@ -16,6 +16,7 @@ import onet_disk2D.gradients
 import onet_disk2D.grids
 import onet_disk2D.model
 import onet_disk2D.physics
+import onet_disk2D.utils
 
 
 def resolve_save_dir(save_dir, file_list, verbose=True):
@@ -108,6 +109,9 @@ class JOB:
         self.arg_groups = load_arg_groups(self.args["arg_groups_file"])
 
         # build model
+        self.col_idx_to_log = jnp.array(
+            [s == "log10" for s in self.args["u_transform"]]
+        )
         self.s_raw_and_a_fn = onet_disk2D.model.outputs_scaling_transform(
             self.model.forward_apply
         )[1]
@@ -232,7 +236,9 @@ class JOB:
         if len(self.args["u_transform"]) != len(self.parameter):
             raise ValueError
 
-        transform_func = onet_disk2D.model.get_input_transform(self.args["u_transform"])
+        @jax.jit
+        def transform_func(inputs):
+            return onet_disk2D.utils.to_log(inputs, self.col_idx_to_log)
 
         normalization_func = onet_disk2D.model.get_input_normalization(
             u_min=jnp.array(self.args["u_min"]), u_max=jnp.array(self.args["u_max"])
