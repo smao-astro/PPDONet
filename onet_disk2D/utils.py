@@ -5,7 +5,7 @@ from functools import partial
 
 
 @jax.jit
-def to_log(u, col_idx_to_apply: chex.Array):
+def to_log(u: chex.Array, col_idx_to_apply: chex.Array) -> chex.Array:
     """Convert the second axis of u to log scale.
 
     Args:
@@ -25,7 +25,7 @@ def to_log(u, col_idx_to_apply: chex.Array):
 
 
 @jax.jit
-def to_linear(u, col_idx_to_apply):
+def to_linear(u: chex.Array, col_idx_to_apply: chex.Array) -> chex.Array:
     """Convert the columns of u to linear scale.
 
     Args:

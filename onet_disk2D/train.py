@@ -4,22 +4,22 @@ Script for training
 import argparse
 
 
-def list_of_float(raw_inputs: str):
+def list_of_float(raw_inputs: str) -> list[float]:
     return [float(value) for value in raw_inputs.split(",")]
 
 
-def list_of_int(raw_inputs: str):
+def list_of_int(raw_inputs: str) -> list[int]:
     return [int(value) for value in raw_inputs.split(",")]
 
 
-def list_of_int_default_empty(raw_inputs: str):
+def list_of_int_default_empty(raw_inputs: str) -> list:
     if raw_inputs:
         return [int(value) for value in raw_inputs.split(",")]
     else:
         return []
 
 
-def list_of_str(raw_inputs: str):
+def list_of_str(raw_inputs: str) -> list[str]:
     return [value for value in raw_inputs.split(",")]
 
 

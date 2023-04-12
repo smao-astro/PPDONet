@@ -1,7 +1,8 @@
 import functools
 import pathlib
-from typing import TypedDict, List
+from typing import TypedDict, Mapping, Hashable
 
+import chex
 import jax.numpy as jnp
 import jax.random
 import numpy as np
@@ -9,21 +10,23 @@ import xarray as xr
 
 
 class InputDict(TypedDict):
-    u_net: jnp.ndarray
-    y_net: jnp.ndarray
+    u_net: chex.Array
+    y_net: chex.Array
 
 
 class DataDict(TypedDict):
     inputs: InputDict
-    s: jnp.ndarray
+    s: chex.Array
 
 
-def load_last_frame_data(data_dir, unknown, parameter=None):
+def load_last_frame_data(data_dir, unknown, parameter=None) -> dict[str, xr.DataArray]:
     """
     Args:
         data_dir: Path to the data directory.
-        unknown: One of {'log_sigma', 'sigma', 'v_r', 'v_theta'}. If 'log_sigma', the data is transformed to log10(sigma).
-        parameter: List of parameter names, all in uppercase. This is to check if the data is consistent with name of parameters from the commmand line input.
+        unknown: One of {'log_sigma', 'sigma', 'v_r', 'v_theta'}. If 'log_sigma', the data is transformed to log10(
+        sigma).
+        parameter: List of parameter names, all in uppercase. This is to check if the data is consistent with name of
+        parameters from the commmand line input.
 
     """
     data_dir = pathlib.Path(data_dir)
@@ -48,7 +51,7 @@ def load_last_frame_data(data_dir, unknown, parameter=None):
     return {unknown: data}
 
 
-def extract_variable_parameters_name(single_data) -> List[str]:
+def extract_variable_parameters_name(single_data: xr.DataArray) -> list[Hashable]:
     """
 
     Args:
@@ -57,28 +60,22 @@ def extract_variable_parameters_name(single_data) -> List[str]:
     Returns:
         p_names: sorted list of parameter names, all in uppercase.
     """
-    p_names = sorted(set(single_data.coords) - set(single_data.dims))
+    p_names = list(set(single_data.coords) - set(single_data.dims))
+    p_names.sort()
     return p_names
 
 
 class DataIterLoader:
     """dataloader implemented from scratch, do not support multi-processing."""
 
-    def __init__(self, data, batch_size, key=123):
-        """
-
-        Args:
-            data:
-            batch_size:
-            key:
-        """
+    def __init__(self, data: Mapping[str, xr.DataArray], batch_size: int, key=123):
         data = list(data.items())
         if len(data) != 1:
             raise ValueError
         self.phys_var_type, self.data = data[0]
 
         self.batch_size = batch_size
-        self.Nu = len(self.data["run"])
+        self.Nu: int = len(self.data["run"])
         self.n_batch = self.Nu // self.batch_size
 
         self.key = jax.random.PRNGKey(key)
@@ -117,6 +114,21 @@ class DataIterLoader:
         return data
 
 
+def extract_parameters(data: xr.DataArray) -> chex.Array:
+    """
+
+    Args:
+        data:
+
+    Returns:
+        u: shape (Nu, Np). The last dimension is the parameter dimension.
+    """
+    parameters = extract_variable_parameters_name(data)
+    u = [data[p].values for p in parameters]
+    u = jnp.stack(u, axis=-1)
+    return u
+
+
 def to_datadict(data: xr.DataArray) -> DataDict:
     """Convert the DataArray of one physics variable to DataDict.
 
@@ -129,10 +141,7 @@ def to_datadict(data: xr.DataArray) -> DataDict:
 
     """
     data = data.transpose("run", "r", "theta")
-    parameters = list(set(data.coords) - set(data.dims))
-    parameters.sort()
-    u = [data[p].values for p in parameters]
-    u = jnp.stack(u, axis=-1)
+    u = extract_parameters(data)
 
     r, theta = xr.broadcast(
         data.coords["r"],
