@@ -1,6 +1,7 @@
 import pathlib
 import shutil
 
+import jax.numpy as jnp
 import numpy as np
 import pytest
 
@@ -37,3 +38,41 @@ def test_load_fargo_setups(datapath):
         fargo_setups_file
     )
     assert np.isclose(fargo_setups["omegaframe"], 1.0)
+
+
+def test_get_u_net_input_transform():
+    col_idx_to_log = jnp.array([True, False, True])
+    u_min = jnp.array([-4, 0.05, -4])
+    u_max = jnp.array([-1, 0.1, -1])
+
+    inputs = jnp.array(
+        [
+            [1e-4, 0.05, 1e-4],
+            [1e-4, 0.1, 1e-4],
+            [1e-1, 0.05, 1e-4],
+            [1e-1, 0.1, 1e-4],
+            [1e-4, 0.05, 1e-1],
+            [1e-4, 0.1, 1e-1],
+            [1e-1, 0.05, 1e-1],
+            [1e-1, 0.1, 1e-1],
+        ]
+    )
+
+    expected = jnp.array(
+        [
+            [-1, -1, -1],
+            [-1, 1, -1],
+            [1, -1, -1],
+            [1, 1, -1],
+            [-1, -1, 1],
+            [-1, 1, 1],
+            [1, -1, 1],
+            [1, 1, 1],
+        ]
+    )
+    u_net_input_transform = onet_disk2D.run.job.get_u_net_input_transform(
+        col_idx_to_log, u_min, u_max
+    )
+    transformed_inputs = u_net_input_transform(inputs)
+
+    assert jnp.allclose(transformed_inputs, expected)
