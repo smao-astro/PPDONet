@@ -2,6 +2,7 @@ import argparse
 import functools
 import pathlib
 
+import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -95,6 +96,32 @@ def load_fargo_setups(fargo_setups_file):
 def load_arg_groups(arg_groups_file):
     with pathlib.Path(arg_groups_file).open("r") as f:
         return yaml.safe_load(f)
+
+
+def get_u_net_input_transform(
+    col_idx_to_log: chex.Array, u_min: chex.Array, u_max: chex.Array
+):
+    """Get u_net_input_transform.
+
+    Args:
+        col_idx_to_log: bool array, whether to log transform the corresponding column.
+        u_min: float array, minimum of u. The values are either in linear scale or log10 scale, following `col_idx_to_log`.
+        u_max: float array, maximum of u. The values are either in linear scale or log10 scale, following `col_idx_to_log`.
+
+    Returns:
+        u_net_input_transform: jax function, transform u to u_net_input.
+    """
+    normalization_func = onet_disk2D.model.get_input_normalization(
+        u_min=jnp.array(u_min), u_max=jnp.array(u_max)
+    )
+
+    @jax.jit
+    def u_net_input_transform(inputs):
+        inputs = onet_disk2D.utils.to_log(inputs, col_idx_to_log)
+        inputs = normalization_func(inputs)
+        return inputs
+
+    return u_net_input_transform
 
 
 class JOB:
@@ -236,15 +263,9 @@ class JOB:
         if len(self.args["u_transform"]) != len(self.parameter):
             raise ValueError
 
-        @jax.jit
-        def transform_func(inputs):
-            return onet_disk2D.utils.to_log(inputs, self.col_idx_to_log)
-
-        normalization_func = onet_disk2D.model.get_input_normalization(
-            u_min=jnp.array(self.args["u_min"]), u_max=jnp.array(self.args["u_max"])
+        return get_u_net_input_transform(
+            self.col_idx_to_log, self.args["u_min"], self.args["u_max"]
         )
-
-        return lambda inputs: normalization_func(transform_func(inputs))
 
     @functools.cached_property
     def u_net_output_transform(self):
