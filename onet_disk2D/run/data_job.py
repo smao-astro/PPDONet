@@ -1,7 +1,5 @@
 import functools
 
-import sklearn.model_selection
-
 import onet_disk2D.callbacks
 import onet_disk2D.constraints
 import onet_disk2D.data
@@ -12,55 +10,39 @@ class DataTrain(Train):
     def __init__(self, args):
         super(DataTrain, self).__init__(args)
         # train related
-        self.data = onet_disk2D.data.load_last_frame_data(
-            data_dir=self.args["data_dir"],
+        self.train_data = onet_disk2D.data.load_last_frame_data(
+            data_dir=self.args["train_data_dir"],
             unknown=self.args["unknown"],
             parameter=self.parameter,
         )
-        self.train_data, self.val_data = self.get_train_val_data()
+        self.val_data = onet_disk2D.data.load_last_frame_data(
+            data_dir=self.args["val_data_dir"],
+            unknown=self.args["unknown"],
+            parameter=self.parameter,
+        )
 
-        if set(self.data_loader.parameter_names) != set(self.parameter):
+        if set(self.train_data_loader.parameter_names) != set(self.parameter):
             raise ValueError
 
     def release_data(self):
-        for d in self.data.values():
+        for d in self.train_data.values():
             d.close()
 
-    def get_train_val_data(self):
-        """
-
-        Returns:
-            train_data:
-                a dict of xr.DataArray for training
-                    key: One of log_sigma, sigma, v_r, v_theta
-            val_data:
-                a dict of xr.DataArray for training
-                    key: One of log_sigma, sigma, v_r, v_theta
-        """
-        run = self.data[self.args["unknown"]]["run"].values
-        train_run, val_run = sklearn.model_selection.train_test_split(
-            run,
-            train_size=self.args["train_sample_percent"],
-            random_state=self.args["key"],
-            shuffle=True,
-        )
-        train_data = {k: v.sel(run=train_run) for k, v in self.data.items()}
-        val_data = {k: v.sel(run=val_run) for k, v in self.data.items()}
-        return train_data, val_data
+        for d in self.val_data.values():
+            d.close()
 
     @functools.cached_property
-    def data_loader(self):
+    def train_data_loader(self):
         return onet_disk2D.data.DataIterLoader(
             data=self.train_data,
-            batch_size=self.args["batch_size_data"],
+            batch_size=self.args["batch_size_train"],
         )
 
     @functools.cached_property
     def val_data_loader(self):
-        n_run = len(self.val_data[self.args["unknown"]]["run"])
         return onet_disk2D.data.DataIterLoader(
             data=self.val_data,
-            batch_size=1,
+            batch_size=self.args["batch_size_val"],
         )
 
     @functools.cached_property
@@ -68,7 +50,7 @@ class DataTrain(Train):
         return onet_disk2D.constraints.DataConstraints(
             s_pred_fn=self.s_pred_fn,
             unknown=self.args["unknown"],
-            dataloader=self.data_loader,
+            dataloader=self.train_data_loader,
         )
 
     @functools.cached_property
@@ -87,7 +69,7 @@ class DataTrain(Train):
         callbacks.append(
             onet_disk2D.callbacks.LossLogger(
                 "data_loss",
-                train_data_loader=self.data_loader,
+                train_data_loader=self.train_data_loader,
                 val_data_loader=self.val_data_loader,
                 period=self.args["steps_per_log"],
                 period_dump=self.args["steps_per_dump_log"],
