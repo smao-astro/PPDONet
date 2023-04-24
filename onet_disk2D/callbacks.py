@@ -231,7 +231,7 @@ def plot_mag(mag_xarray) -> plt.Figure:
 
 class LossLogger(Callback):
     def __init__(
-        self, file_name, train_data_loader, val_data_loader, period=10, period_dump=300
+        self, file_name, train_data_loader: onet_disk2D.data.DataIterLoader, val_data_loader: onet_disk2D.data.DataIterLoader, period=10, period_dump=300
     ):
         super(LossLogger, self).__init__()
         self.file_name = file_name

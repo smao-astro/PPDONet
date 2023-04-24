@@ -72,7 +72,9 @@ class DataIterLoader:
         data = list(data.items())
         if len(data) != 1:
             raise ValueError
-        self.phys_var_type, self.data = data[0]
+        self.unknown, self.data = data[0]
+        """self.phys_var_type: str, one of {'log_sigma', 'sigma', 'v_r', 'v_theta'}."""
+        """self.data: xr.DataArray"""
 
         self.batch_size = batch_size
         self.Nu: int = len(self.data["run"])
@@ -97,7 +99,7 @@ class DataIterLoader:
         self.init_batch_index()
         return self
 
-    def __next__(self):
+    def __next__(self) -> dict[str, DataDict]:
         try:
             batch_index = next(self.batch_index)
         except StopIteration:
@@ -110,7 +112,7 @@ class DataIterLoader:
         # u shape: (Nu, 1) y shape: (Nr, Ntheta, 2) s shape (Nu, Nr, Ntheta, 1)
         data = self.data.isel(**{"run": batch_index})
 
-        data = {self.phys_var_type: to_datadict(data)}
+        data = {self.unknown: to_datadict(data)}
         return data
 
 

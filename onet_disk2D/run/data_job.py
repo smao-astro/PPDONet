@@ -32,14 +32,14 @@ class DataTrain(Train):
             d.close()
 
     @functools.cached_property
-    def train_data_loader(self):
+    def train_data_loader(self) -> onet_disk2D.data.DataIterLoader:
         return onet_disk2D.data.DataIterLoader(
             data=self.train_data,
             batch_size=self.args["batch_size_train"],
         )
 
     @functools.cached_property
-    def val_data_loader(self):
+    def val_data_loader(self) -> onet_disk2D.data.DataIterLoader:
         return onet_disk2D.data.DataIterLoader(
             data=self.val_data,
             batch_size=self.args["batch_size_val"],
