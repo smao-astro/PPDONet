@@ -3,9 +3,9 @@ import typing
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 import jaxphyinf.io
 import matplotlib.pyplot as plt
+import numpy as np
 import xarray as xr
 import yaml
 
@@ -277,6 +277,7 @@ class LossLogger(Callback):
                             self.job.model.params,
                             self.job.state,
                             parameters,
+                            # k is "data_" + k[5:], remove "data_"
                             data[k[5:]],
                         )
                     )
@@ -290,6 +291,7 @@ class LossLogger(Callback):
                             self.job.model.params,
                             self.job.state,
                             parameters,
+                            # k is "data_" + k[5:], remove "data_"
                             data[k[5:]],
                         )
                     )
@@ -358,7 +360,8 @@ class ModelSaver(Callback):
 class InputChecker(Callback):
     def on_train_begin(self):
         key = self.job.args["unknown"]
-        data = onet_disk2D.data.to_datadict(self.job.data[key])
+        # get all train data
+        data = onet_disk2D.data.to_datadict(self.job.train_data[key])
         transformed_inputs = self.job.u_net_input_transform(data["inputs"]["u_net"])
         print("transformed_inputs:")
         print("\tMean: ", jnp.mean(transformed_inputs, axis=0))
