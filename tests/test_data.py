@@ -1,5 +1,7 @@
 import pathlib
 
+import jax.numpy as jnp
+import jax.random
 import numpy as np
 import pytest
 import xarray as xr
@@ -49,21 +51,26 @@ def test_to_datadict(datapath):
     assert all(cri)
 
 
-class TestDataIterLoader:
-    @pytest.fixture(params=[SINGLEP_DATAPATH, MULTIP_DATAPATH])
-    def data_loader(self, request):
-        datapath = request.param
-        rawdata = onet_disk2D.data.load_last_frame_data(datapath, "log_sigma")
-        data = onet_disk2D.data.DataIterLoader(rawdata, batch_size=4)
-        return data
+def test_get_batch_indices():
+    key = 123
+    random_index_iterator = onet_disk2D.data.RandomIndexIterator(100, 10, key)
+    indices_list = []
+    criteria = []
+    for i in range(10):
+        indices = random_index_iterator.get_batch_indices()
+        criteria.append(len(indices) == 10)
+        indices_list.append(indices)
+    indices_array = jnp.array(indices_list)
 
-    def test_epochs(self, data_loader):
-        data_iter = iter(data_loader)
-        cri = []
-        for i in range(10):
-            data_i = next(data_iter)
-            print(data_loader.key)
-            for k, data in data_i.items():
-                print(data["inputs"]["u_net"])
+    expected = onet_disk2D.data.get_random_index_batches(
+        100, 10, jax.random.PRNGKey(key)
+    )
+    expected = jnp.array(expected)
+    criteria.append(jnp.array_equal(indices_array, expected))
 
-            assert True
+    # test the 11th batch
+    indices = random_index_iterator.get_batch_indices()
+    # since the random key is changed, the indices of the 11th batch should be different from any of the previous 10 batches.
+    equal = jnp.all(jnp.equal(indices, indices_array), axis=1)
+    criteria.append(~jnp.any(equal))
+    assert all(criteria)

@@ -21,9 +21,6 @@ class DataTrain(Train):
             parameter=self.parameter,
         )
 
-        if set(self.train_data_loader.parameter_names) != set(self.parameter):
-            raise ValueError
-
     def release_data(self):
         for d in self.train_data.values():
             d.close()
@@ -32,25 +29,16 @@ class DataTrain(Train):
             d.close()
 
     @functools.cached_property
-    def train_data_loader(self) -> onet_disk2D.data.DataIterLoader:
-        return onet_disk2D.data.DataIterLoader(
-            data=self.train_data,
-            batch_size=self.args["batch_size_train"],
-        )
-
-    @functools.cached_property
-    def val_data_loader(self) -> onet_disk2D.data.DataIterLoader:
-        return onet_disk2D.data.DataIterLoader(
-            data=self.val_data,
-            batch_size=self.args["batch_size_val"],
-        )
-
-    @functools.cached_property
     def constraints(self):
+        random_index_iterator = onet_disk2D.data.RandomIndexIterator(
+            total_size=len(self.train_data[self.args["unknown"]]),
+            batch_size=self.args["batch_size_train"],
+            key=self.args["key"],
+        )
         return onet_disk2D.constraints.DataConstraints(
             s_pred_fn=self.s_pred_fn,
-            unknown=self.args["unknown"],
-            dataloader=self.train_data_loader,
+            train_data=self.train_data,
+            random_index_iterator=random_index_iterator,
         )
 
     @functools.cached_property
@@ -66,11 +54,21 @@ class DataTrain(Train):
         elif self.args["g_compute_method"] == "ntk_weighted_sum":
             raise NotImplementedError
 
+        train_data_iter = onet_disk2D.data.get_index_batches(
+            total_size=len(self.train_data[self.args["unknown"]]),
+            batch_size=self.args["batch_size_train"],
+        )
+        val_data_iter = onet_disk2D.data.get_index_batches(
+            total_size=len(self.val_data[self.args["unknown"]]),
+            batch_size=self.args["batch_size_val"],
+        )
         callbacks.append(
             onet_disk2D.callbacks.LossLogger(
                 "data_loss",
-                train_data_loader=self.train_data_loader,
-                val_data_loader=self.val_data_loader,
+                train_index_iterator=train_data_iter,
+                train_data=self.train_data,
+                val_index_iterator=val_data_iter,
+                val_data=self.val_data,
                 period=self.args["steps_per_log"],
                 period_dump=self.args["steps_per_dump_log"],
             )

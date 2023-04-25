@@ -1,6 +1,5 @@
-import functools
 import pathlib
-from typing import TypedDict, Mapping, Hashable
+from typing import TypedDict, Hashable
 
 import chex
 import jax.numpy as jnp
@@ -65,55 +64,61 @@ def extract_variable_parameters_name(single_data: xr.DataArray) -> list[Hashable
     return p_names
 
 
-class DataIterLoader:
-    """dataloader implemented from scratch, do not support multi-processing."""
+def get_index_batches(total_size: int, batch_size: int) -> list[chex.Array]:
+    """Split the data indices into batches.
 
-    def __init__(self, data: Mapping[str, xr.DataArray], batch_size: int, key=123):
-        data = list(data.items())
-        if len(data) != 1:
-            raise ValueError
-        self.unknown, self.data = data[0]
-        """self.phys_var_type: str, one of {'log_sigma', 'sigma', 'v_r', 'v_theta'}."""
-        """self.data: xr.DataArray"""
+    Args:
+        total_size: Total number of data.
+        batch_size: Size of each batch.
 
-        self.batch_size = batch_size
-        self.Nu: int = len(self.data["run"])
-        self.n_batch = self.Nu // self.batch_size
+    Notes:
+        If you can, make sure that total_size is divisible by batch_size.
 
+    Returns:
+        A list of index arrays, each array is the index of a batch.
+
+    """
+    indices = jnp.arange(total_size)
+    return jnp.array_split(indices, total_size // batch_size)
+
+
+def get_random_index_batches(
+    total_size: int, batch_size: int, key: jax.random.PRNGKey
+) -> list[chex.Array]:
+    """Shuffle the data indices and split them into batches.
+
+    Notes:
+        If you can, make sure that total_size is divisible by batch_size.
+
+    See `get_index_batches` for more details.
+    """
+    indices = jax.random.permutation(key, total_size)
+    return jnp.array_split(indices, total_size // batch_size)
+
+
+class RandomIndexIterator:
+    def __init__(self, total_size: int, batch_size: int, key: int = 123):
         self.key = jax.random.PRNGKey(key)
-        self.batch_index = None
+        self.total_size = total_size
+        self.batch_size = batch_size
+        self._index_iterator = iter(
+            get_random_index_batches(self.total_size, self.batch_size, self.key)
+        )
 
-    @functools.cached_property
-    def parameter_names(self):
-        return extract_variable_parameters_name(self.data)
-
-    def init_batch_index(self):
-        # call at every beginning of epochs
-        # generate and shuffle index
-        i = jax.random.permutation(self.key, self.Nu)
-        i = jnp.array_split(i, self.n_batch)
-        self.batch_index = iter(i)
-
-    def __iter__(self):
-        # determine the row (u) index for batch samples
-        self.init_batch_index()
-        return self
-
-    def __next__(self) -> dict[str, DataDict]:
+    def get_batch_indices(self) -> chex.Array:
         try:
-            batch_index = next(self.batch_index)
+            batch_indices = next(self._index_iterator)
         except StopIteration:
             print("\nEnd of a data epoch. Resampling...")
-            # regenerate batch
-            _, self.key = jax.random.split(self.key)
-            self.init_batch_index()
-            batch_index = next(self.batch_index)
-        # load data
-        # u shape: (Nu, 1) y shape: (Nr, Ntheta, 2) s shape (Nu, Nr, Ntheta, 1)
-        data = self.data.isel(**{"run": batch_index})
-
-        data = {self.unknown: to_datadict(data)}
-        return data
+            # update the random key
+            self.key, _ = jax.random.split(self.key)
+            # resample the indices
+            self._index_iterator = iter(
+                get_random_index_batches(self.total_size, self.batch_size, self.key)
+            )
+            # get the first batch
+            batch_indices = next(self._index_iterator)
+        return batch_indices
 
 
 def extract_parameters(data: xr.DataArray) -> chex.Array:
