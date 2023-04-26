@@ -403,6 +403,9 @@ class JOB:
     ):
         """
 
+        Notes:
+            The current implementation is memory inefficient. To improve, we can follow the steps 1). split the data into batches 2). calculate the errors 3). summarize the errors and save to files.
+
         Args:
             data: One of {sigma, v_r, v_theta}
             data_type: 'train', 'val', 'test' or 'train_and_val'

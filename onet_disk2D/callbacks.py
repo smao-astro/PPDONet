@@ -240,7 +240,7 @@ class LossLogger(Callback):
         period=10,
         period_dump=300,
     ):
-        """
+        """Print the losses on current batch, and log the average losses on all batches to files.
 
         Notes:
             - all element in `train_data` should have the same number of fargo runs, and share the same `train_index_iterator`
@@ -281,6 +281,7 @@ class LossLogger(Callback):
         if i_steps_total % self.period == 0:
             # check
             if jnp.any(jnp.isnan(jnp.stack(list(self.job.vs.values())))):
+                # print the losses on current batch
                 print("loss: ", self.job.vs)
                 raise ValueError("Get NAN in training!")
             self.log["i_steps"].append(i_steps_total)
@@ -297,6 +298,7 @@ class LossLogger(Callback):
                         loss.append(
                             loss_fn(self.job.model.params, self.job.state, data_i)
                         )
+                    # log the average losses on all batches
                     self.log[data_type + "_" + k].append(float(np.mean(loss)))
 
         if i_steps_total % self.period_dump == 0:
