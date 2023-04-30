@@ -476,6 +476,14 @@ class JOB:
         print(f"{data_type}_{self.unknown_type}_l2= {l2_errors:.2g}")
         errors["l2"][self.unknown_type] = f"{l2_errors:.2g}"
 
+        # mse for v_r and v_theta
+        if self.unknown_type in ["v_r", "v_theta"]:
+            mse_errors = jnp.nanmean((predict_normal_scale - truth_normal_scale) ** 2)
+            # guild scalar
+            print(f"{data_type}_{self.unknown_type}_mse: {mse_errors}")
+            print(f"{data_type}_{self.unknown_type}_mse= {mse_errors:.2g}")
+            errors["mse"][self.unknown_type] = f"{mse_errors:.2g}"
+
         to_file(
             truth=truth_normal_scale,
             predict=predict_normal_scale,
