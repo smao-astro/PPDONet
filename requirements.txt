@@ -1,6 +1,6 @@
-jax==0.4.6
-jaxlib==0.4.6
-dm-haiku==0.0.9
+jax>=0.4.6
+jaxlib>=0.4.6
+dm-haiku>=0.0.9
 chex>=0.1.7
 optax==0.1.2
 xarray==2022.3.0
@@ -11,6 +11,6 @@ scikit-image
 tqdm==4.64.0
 pytest==7.1.2
 netCDF4==1.6.0
-dash==2.9.1
+dash>=2.9.1
 dash-bootstrap-components==1.4.1
 gunicorn
