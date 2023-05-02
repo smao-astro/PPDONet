@@ -231,12 +231,29 @@ def plot_mag(mag_xarray) -> plt.Figure:
 
 class LossLogger(Callback):
     def __init__(
-        self, file_name, train_data_loader, val_data_loader, period=10, period_dump=300
+        self,
+        file_name,
+        train_index_iterator: typing.Iterable,
+        train_data: dict[str, xr.DataArray],
+        val_index_iterator: typing.Iterable,
+        val_data: dict[str, xr.DataArray],
+        period=10,
+        period_dump=300,
     ):
+        """Print the losses on current batch, and log the average losses on all batches to files.
+
+        Notes:
+            - all element in `train_data` should have the same number of fargo runs, and share the same `train_index_iterator`
+            - all element in `val_data` should have the same number of fargo runs, and share the same `val_index_iterator`
+
+        """
         super(LossLogger, self).__init__()
         self.file_name = file_name
-        self.train_data_loader = train_data_loader
-        self.val_data_loader = val_data_loader
+        self.index_iterator = {
+            "train": train_index_iterator,
+            "val": val_index_iterator,
+        }
+        self.data = {"train": train_data, "val": val_data}
         self.period = period
         self.period_dump = period_dump
         self.log = {}
@@ -264,34 +281,26 @@ class LossLogger(Callback):
         if i_steps_total % self.period == 0:
             # check
             if jnp.any(jnp.isnan(jnp.stack(list(self.job.vs.values())))):
+                # print the losses on current batch
                 print("loss: ", self.job.vs)
                 raise ValueError("Get NAN in training!")
             self.log["i_steps"].append(i_steps_total)
             for k, loss_fn in self.job.constraints.loss_fn.items():
-                train_loss = []
-                for i, data in zip(
-                    range(self.train_data_loader.n_batch), self.train_data_loader
-                ):
-                    train_loss.append(
-                        loss_fn(
-                            self.job.model.params,
-                            self.job.state,
-                            data[k[5:]],
+                # does not matter which for loop is at the outer layer
+                for data_type in ["train", "val"]:
+                    loss = []
+                    # k is "data_" + k[5:], remove "data_"
+                    data = self.data[data_type][k[5:]]
+                    for indices in self.index_iterator[data_type]:
+                        # select data by indices from the xr.DataArra
+                        data_i = data.isel(run=indices)
+                        data_i = onet_disk2D.data.to_datadict(data_i)
+                        loss.append(
+                            loss_fn(self.job.model.params, self.job.state, data_i)
                         )
-                    )
-                self.log["train_" + k].append(float(np.mean(train_loss)))
-                val_loss = []
-                for i, data in zip(
-                    range(self.val_data_loader.n_batch), self.val_data_loader
-                ):
-                    val_loss.append(
-                        loss_fn(
-                            self.job.model.params,
-                            self.job.state,
-                            data[k[5:]],
-                        )
-                    )
-                self.log["val_" + k].append(float(np.mean(val_loss)))
+                    # log the average losses on all batches
+                    self.log[data_type + "_" + k].append(float(np.mean(loss)))
+
         if i_steps_total % self.period_dump == 0:
             self.dump()
 
@@ -356,7 +365,8 @@ class ModelSaver(Callback):
 class InputChecker(Callback):
     def on_train_begin(self):
         key = self.job.args["unknown"]
-        data = onet_disk2D.data.to_datadict(self.job.data[key])
+        # get all train data
+        data = onet_disk2D.data.to_datadict(self.job.train_data[key])
         transformed_inputs = self.job.u_net_input_transform(data["inputs"]["u_net"])
         print("transformed_inputs:")
         print("\tMean: ", jnp.mean(transformed_inputs, axis=0))

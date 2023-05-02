@@ -1,7 +1,5 @@
 import functools
 
-import sklearn.model_selection
-
 import onet_disk2D.callbacks
 import onet_disk2D.constraints
 import onet_disk2D.data
@@ -12,63 +10,35 @@ class DataTrain(Train):
     def __init__(self, args):
         super(DataTrain, self).__init__(args)
         # train related
-        self.data = onet_disk2D.data.load_last_frame_data(
-            data_dir=self.args["data_dir"],
+        self.train_data = onet_disk2D.data.load_last_frame_data(
+            data_dir=self.args["train_data_dir"],
             unknown=self.args["unknown"],
             parameter=self.parameter,
         )
-        self.train_data, self.val_data = self.get_train_val_data()
-
-        if set(self.data_loader.parameter_names) != set(self.parameter):
-            raise ValueError
+        self.val_data = onet_disk2D.data.load_last_frame_data(
+            data_dir=self.args["val_data_dir"],
+            unknown=self.args["unknown"],
+            parameter=self.parameter,
+        )
 
     def release_data(self):
-        for d in self.data.values():
+        for d in self.train_data.values():
             d.close()
 
-    def get_train_val_data(self):
-        """
-
-        Returns:
-            train_data:
-                a dict of xr.DataArray for training
-                    key: One of log_sigma, sigma, v_r, v_theta
-            val_data:
-                a dict of xr.DataArray for training
-                    key: One of log_sigma, sigma, v_r, v_theta
-        """
-        run = self.data[self.args["unknown"]]["run"].values
-        train_run, val_run = sklearn.model_selection.train_test_split(
-            run,
-            train_size=self.args["train_sample_percent"],
-            random_state=self.args["key"],
-            shuffle=True,
-        )
-        train_data = {k: v.sel(run=train_run) for k, v in self.data.items()}
-        val_data = {k: v.sel(run=val_run) for k, v in self.data.items()}
-        return train_data, val_data
-
-    @functools.cached_property
-    def data_loader(self):
-        return onet_disk2D.data.DataIterLoader(
-            data=self.train_data,
-            batch_size=self.args["batch_size_data"],
-        )
-
-    @functools.cached_property
-    def val_data_loader(self):
-        n_run = len(self.val_data[self.args["unknown"]]["run"])
-        return onet_disk2D.data.DataIterLoader(
-            data=self.val_data,
-            batch_size=n_run,
-        )
+        for d in self.val_data.values():
+            d.close()
 
     @functools.cached_property
     def constraints(self):
+        random_index_iterator = onet_disk2D.data.RandomIndexIterator(
+            total_size=len(self.train_data[self.args["unknown"]]),
+            batch_size=self.args["batch_size_train"],
+            key=self.args["key"],
+        )
         return onet_disk2D.constraints.DataConstraints(
             s_pred_fn=self.s_pred_fn,
-            unknown=self.args["unknown"],
-            dataloader=self.data_loader,
+            train_data=self.train_data,
+            random_index_iterator=random_index_iterator,
         )
 
     @functools.cached_property
@@ -84,11 +54,21 @@ class DataTrain(Train):
         elif self.args["g_compute_method"] == "ntk_weighted_sum":
             raise NotImplementedError
 
+        train_data_iter = onet_disk2D.data.get_index_batches(
+            total_size=len(self.train_data[self.args["unknown"]]),
+            batch_size=self.args["batch_size_train"],
+        )
+        val_data_iter = onet_disk2D.data.get_index_batches(
+            total_size=len(self.val_data[self.args["unknown"]]),
+            batch_size=self.args["batch_size_val"],
+        )
         callbacks.append(
             onet_disk2D.callbacks.LossLogger(
                 "data_loss",
-                train_data_loader=self.data_loader,
-                val_data_loader=self.val_data_loader,
+                train_index_iterator=train_data_iter,
+                train_data=self.train_data,
+                val_index_iterator=val_data_iter,
+                val_data=self.val_data,
                 period=self.args["steps_per_log"],
                 period_dump=self.args["steps_per_dump_log"],
             )

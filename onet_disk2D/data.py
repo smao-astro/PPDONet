@@ -1,7 +1,7 @@
-import functools
 import pathlib
-from typing import TypedDict, List
+from typing import TypedDict, Hashable
 
+import chex
 import jax.numpy as jnp
 import jax.random
 import numpy as np
@@ -9,21 +9,23 @@ import xarray as xr
 
 
 class InputDict(TypedDict):
-    u_net: jnp.ndarray
-    y_net: jnp.ndarray
+    u_net: chex.Array
+    y_net: chex.Array
 
 
 class DataDict(TypedDict):
     inputs: InputDict
-    s: jnp.ndarray
+    s: chex.Array
 
 
-def load_last_frame_data(data_dir, unknown, parameter=None):
+def load_last_frame_data(data_dir, unknown, parameter=None) -> dict[str, xr.DataArray]:
     """
     Args:
         data_dir: Path to the data directory.
-        unknown: One of {'log_sigma', 'sigma', 'v_r', 'v_theta'}. If 'log_sigma', the data is transformed to log10(sigma).
-        parameter: List of parameter names, all in uppercase. This is to check if the data is consistent with name of parameters from the commmand line input.
+        unknown: One of {'log_sigma', 'sigma', 'v_r', 'v_theta'}. If 'log_sigma', the data is transformed to log10(
+        sigma).
+        parameter: List of parameter names, all in uppercase. This is to check if the data is consistent with name of
+        parameters from the commmand line input.
 
     """
     data_dir = pathlib.Path(data_dir)
@@ -48,7 +50,7 @@ def load_last_frame_data(data_dir, unknown, parameter=None):
     return {unknown: data}
 
 
-def extract_variable_parameters_name(single_data) -> List[str]:
+def extract_variable_parameters_name(single_data: xr.DataArray) -> list[Hashable]:
     """
 
     Args:
@@ -57,64 +59,81 @@ def extract_variable_parameters_name(single_data) -> List[str]:
     Returns:
         p_names: sorted list of parameter names, all in uppercase.
     """
-    p_names = sorted(set(single_data.coords) - set(single_data.dims))
+    p_names = list(set(single_data.coords) - set(single_data.dims))
+    p_names.sort()
     return p_names
 
 
-class DataIterLoader:
-    """dataloader implemented from scratch, do not support multi-processing."""
+def get_index_batches(total_size: int, batch_size: int) -> list[chex.Array]:
+    """Split the data indices into batches.
 
-    def __init__(self, data, batch_size, key=123):
-        """
+    Args:
+        total_size: Total number of data.
+        batch_size: Size of each batch.
 
-        Args:
-            data:
-            batch_size:
-            key:
-        """
-        data = list(data.items())
-        if len(data) != 1:
-            raise ValueError
-        self.phys_var_type, self.data = data[0]
+    Notes:
+        If you can, make sure that total_size is divisible by batch_size.
 
-        self.batch_size = batch_size
-        self.Nu = len(self.data["run"])
-        self.n_batch = self.Nu // self.batch_size
+    Returns:
+        A list of index arrays, each array is the index of a batch.
 
+    """
+    indices = jnp.arange(total_size)
+    return jnp.array_split(indices, total_size // batch_size)
+
+
+def get_random_index_batches(
+    total_size: int, batch_size: int, key: jax.random.PRNGKey
+) -> list[chex.Array]:
+    """Shuffle the data indices and split them into batches.
+
+    Notes:
+        If you can, make sure that total_size is divisible by batch_size.
+
+    See `get_index_batches` for more details.
+    """
+    indices = jax.random.permutation(key, total_size)
+    return jnp.array_split(indices, total_size // batch_size)
+
+
+class RandomIndexIterator:
+    def __init__(self, total_size: int, batch_size: int, key: int = 123):
         self.key = jax.random.PRNGKey(key)
-        self.batch_index = None
+        self.total_size = total_size
+        self.batch_size = batch_size
+        self._index_iterator = iter(
+            get_random_index_batches(self.total_size, self.batch_size, self.key)
+        )
 
-    @functools.cached_property
-    def parameter_names(self):
-        return extract_variable_parameters_name(self.data)
-
-    def init_batch_index(self):
-        # call at every beginning of epochs
-        # generate and shuffle index
-        i = jax.random.permutation(self.key, self.Nu)
-        i = jnp.array_split(i, self.n_batch)
-        self.batch_index = iter(i)
-
-    def __iter__(self):
-        # determine the row (u) index for batch samples
-        self.init_batch_index()
-        return self
-
-    def __next__(self):
+    def get_batch_indices(self) -> chex.Array:
         try:
-            batch_index = next(self.batch_index)
+            batch_indices = next(self._index_iterator)
         except StopIteration:
             print("\nEnd of a data epoch. Resampling...")
-            # regenerate batch
-            _, self.key = jax.random.split(self.key)
-            self.init_batch_index()
-            batch_index = next(self.batch_index)
-        # load data
-        # u shape: (Nu, 1) y shape: (Nr, Ntheta, 2) s shape (Nu, Nr, Ntheta, 1)
-        data = self.data.isel(**{"run": batch_index})
+            # update the random key
+            self.key, _ = jax.random.split(self.key)
+            # resample the indices
+            self._index_iterator = iter(
+                get_random_index_batches(self.total_size, self.batch_size, self.key)
+            )
+            # get the first batch
+            batch_indices = next(self._index_iterator)
+        return batch_indices
 
-        data = {self.phys_var_type: to_datadict(data)}
-        return data
+
+def extract_parameters(data: xr.DataArray) -> chex.Array:
+    """
+
+    Args:
+        data:
+
+    Returns:
+        u: shape (Nu, Np). The last dimension is the parameter dimension.
+    """
+    parameters = extract_variable_parameters_name(data)
+    u = [data[p].values for p in parameters]
+    u = jnp.stack(u, axis=-1)
+    return u
 
 
 def to_datadict(data: xr.DataArray) -> DataDict:
@@ -129,10 +148,7 @@ def to_datadict(data: xr.DataArray) -> DataDict:
 
     """
     data = data.transpose("run", "r", "theta")
-    parameters = list(set(data.coords) - set(data.dims))
-    parameters.sort()
-    u = [data[p].values for p in parameters]
-    u = jnp.stack(u, axis=-1)
+    u = extract_parameters(data)
 
     r, theta = xr.broadcast(
         data.coords["r"],

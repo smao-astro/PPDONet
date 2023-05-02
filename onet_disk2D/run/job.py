@@ -2,6 +2,7 @@ import argparse
 import functools
 import pathlib
 
+import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -16,6 +17,7 @@ import onet_disk2D.gradients
 import onet_disk2D.grids
 import onet_disk2D.model
 import onet_disk2D.physics
+import onet_disk2D.utils
 
 
 def resolve_save_dir(save_dir, file_list, verbose=True):
@@ -96,6 +98,32 @@ def load_arg_groups(arg_groups_file):
         return yaml.safe_load(f)
 
 
+def get_u_net_input_transform(
+    col_idx_to_log: chex.Array, u_min: chex.Array, u_max: chex.Array
+):
+    """Get u_net_input_transform.
+
+    Args:
+        col_idx_to_log: bool array, whether to log transform the corresponding column.
+        u_min: float array, minimum of u. The values are either in linear scale or log10 scale, following `col_idx_to_log`.
+        u_max: float array, maximum of u. The values are either in linear scale or log10 scale, following `col_idx_to_log`.
+
+    Returns:
+        u_net_input_transform: jax function, transform u to u_net_input.
+    """
+    normalization_func = onet_disk2D.model.get_input_normalization(
+        u_min=jnp.array(u_min), u_max=jnp.array(u_max)
+    )
+
+    @jax.jit
+    def u_net_input_transform(inputs):
+        inputs = onet_disk2D.utils.to_log(inputs, col_idx_to_log)
+        inputs = normalization_func(inputs)
+        return inputs
+
+    return u_net_input_transform
+
+
 class JOB:
     def __init__(self, args):
         # load args, configs
@@ -108,6 +136,9 @@ class JOB:
         self.arg_groups = load_arg_groups(self.args["arg_groups_file"])
 
         # build model
+        self.col_idx_to_log = jnp.array(
+            [s == "log10" for s in self.args["u_transform"]]
+        )
         self.s_raw_and_a_fn = onet_disk2D.model.outputs_scaling_transform(
             self.model.forward_apply
         )[1]
@@ -232,13 +263,9 @@ class JOB:
         if len(self.args["u_transform"]) != len(self.parameter):
             raise ValueError
 
-        transform_func = onet_disk2D.model.get_input_transform(self.args["u_transform"])
-
-        normalization_func = onet_disk2D.model.get_input_normalization(
-            u_min=jnp.array(self.args["u_min"]), u_max=jnp.array(self.args["u_max"])
+        return get_u_net_input_transform(
+            self.col_idx_to_log, self.args["u_min"], self.args["u_max"]
         )
-
-        return lambda inputs: normalization_func(transform_func(inputs))
 
     @functools.cached_property
     def u_net_output_transform(self):
@@ -376,6 +403,9 @@ class JOB:
     ):
         """
 
+        Notes:
+            The current implementation is memory inefficient. To improve, we can follow the steps 1). split the data into batches 2). calculate the errors 3). summarize the errors and save to files.
+
         Args:
             data: One of {sigma, v_r, v_theta}
             data_type: 'train', 'val', 'test' or 'train_and_val'
@@ -445,6 +475,14 @@ class JOB:
         print(f"{data_type}_{self.unknown_type}_l2: {l2_errors}")
         print(f"{data_type}_{self.unknown_type}_l2= {l2_errors:.2g}")
         errors["l2"][self.unknown_type] = f"{l2_errors:.2g}"
+
+        # mse for v_r and v_theta
+        if self.unknown_type in ["v_r", "v_theta"]:
+            mse_errors = jnp.nanmean((predict_normal_scale - truth_normal_scale) ** 2)
+            # guild scalar
+            print(f"{data_type}_{self.unknown_type}_mse: {mse_errors}")
+            print(f"{data_type}_{self.unknown_type}_mse= {mse_errors:.2g}")
+            errors["mse"][self.unknown_type] = f"{mse_errors:.2g}"
 
         to_file(
             truth=truth_normal_scale,

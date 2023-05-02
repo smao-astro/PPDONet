@@ -1,10 +1,13 @@
 import functools
 
+import chex
 import jax.numpy as jnp
 
 
 class Grids:
-    def __init__(self, ymin, ymax, xmin, xmax, ny, nx):
+    def __init__(
+        self, ymin: float, ymax: float, xmin: float, xmax: float, ny: int, nx: int
+    ):
         self.ymin = ymin
         self.ymax = ymax
         self.xmin = xmin
@@ -13,7 +16,7 @@ class Grids:
         self.nx = nx
 
     @functools.cached_property
-    def r(self):
+    def r(self) -> chex.Array:
         """
 
         Returns:
@@ -22,7 +25,7 @@ class Grids:
         return jnp.linspace(self.ymin, self.ymax, self.ny + 1)
 
     @functools.cached_property
-    def theta(self):
+    def theta(self) -> chex.Array:
         """
 
         Returns:
@@ -31,7 +34,7 @@ class Grids:
         return jnp.linspace(self.xmin, self.xmax, self.nx + 1)
 
     @functools.cached_property
-    def r_edge(self):
+    def r_edge(self) -> chex.Array:
         """
 
         Returns:
@@ -40,7 +43,7 @@ class Grids:
         return self.r[:-1]
 
     @functools.cached_property
-    def r_middle(self):
+    def r_middle(self) -> chex.Array:
         """
 
         Returns:
@@ -49,7 +52,7 @@ class Grids:
         return (self.r[1:] + self.r[:-1]) / 2.0
 
     @functools.cached_property
-    def theta_edge(self):
+    def theta_edge(self) -> chex.Array:
         """
 
         Returns:
@@ -58,7 +61,7 @@ class Grids:
         return self.theta[:-1]
 
     @functools.cached_property
-    def theta_middle(self):
+    def theta_middle(self) -> chex.Array:
         """
 
         Returns:
@@ -67,7 +70,7 @@ class Grids:
         return (self.theta[1:] + self.theta[:-1]) / 2.0
 
     @functools.cached_property
-    def coords_sigma(self):
+    def coords_sigma(self) -> chex.Array:
         """
 
         Returns:
@@ -79,7 +82,7 @@ class Grids:
         return x
 
     @functools.cached_property
-    def coords_v_theta(self):
+    def coords_v_theta(self) -> chex.Array:
         """
 
         Returns:
@@ -91,7 +94,7 @@ class Grids:
         return x
 
     @functools.cached_property
-    def coords_v_r(self):
+    def coords_v_r(self) -> chex.Array:
         """
 
         Returns:
@@ -103,7 +106,7 @@ class Grids:
         return x
 
     @functools.cached_property
-    def r_fargo_all(self):
+    def r_fargo_all(self) -> dict[str, chex.Array]:
         return {
             "sigma": self.r_middle,
             "v_r": self.r_edge,
@@ -111,7 +114,7 @@ class Grids:
         }
 
     @functools.cached_property
-    def theta_fargo_all(self):
+    def theta_fargo_all(self) -> dict[str, chex.Array]:
         return {
             "sigma": self.theta_middle,
             "v_r": self.theta_middle,
@@ -119,7 +122,7 @@ class Grids:
         }
 
     @functools.cached_property
-    def coords_fargo_all(self):
+    def coords_fargo_all(self) -> dict[str, chex.Array]:
         return {
             "sigma": self.coords_sigma,
             "v_r": self.coords_v_r,

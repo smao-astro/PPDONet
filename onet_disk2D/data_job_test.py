@@ -26,8 +26,6 @@ Files requirements:
 import argparse
 import pathlib
 
-import yaml
-
 import onet_disk2D.run
 
 
@@ -43,7 +41,8 @@ def get_parser():
     )
     parser.add_argument("--arg_groups_file", type=str, default="arg_groups.yml")
     parser.add_argument("--fargo_setup_file", type=str, default="fargo_setups.yml")
-    parser.add_argument("--data_dir", type=str, required=True)
+    parser.add_argument("--train_data_dir", type=str, required=True)
+    parser.add_argument("--val_data_dir", type=str, required=True)
     parser.add_argument(
         "--model_dir",
         type=str,
@@ -75,15 +74,15 @@ if __name__ == "__main__":
         test_args.arg_groups_file,
         test_args.fargo_setup_file,
     )
-    # replace train_args["data_dir"] with local path
-    job_args["data_dir"] = test_args.data_dir
+    # replace train_args["train_data_dir"] and train_args["val_data_dir"] with local path
+    job_args["train_data_dir"] = test_args.train_data_dir
+    job_args["val_data_dir"] = test_args.val_data_dir
     # Warning: do not use train_args['save_dir']
 
     job = onet_disk2D.run.DataTrain(job_args)
     job.load_model(model_dir)
 
     save_dir = onet_disk2D.run.setup_save_dir(test_args.save_dir, model_dir)
-
 
     job.test(
         data=job.train_data,

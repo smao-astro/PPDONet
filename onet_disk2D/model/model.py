@@ -359,35 +359,6 @@ def outputs_scaling_transform(f):
     return outputs_fn, outputs_and_a_fn
 
 
-def str_to_func(func):
-    if func == "":
-        return None
-    elif func == "log10":
-        return jnp.log10
-    else:
-        raise NotImplementedError
-
-
-def get_input_transform(funcs):
-    funcs = [str_to_func(func) for func in funcs]
-
-    @jax.jit
-    def f(inputs):
-        for i, func in enumerate(funcs):
-            if func is not None:
-                inputs = jnp.concatenate(
-                    [
-                        inputs[..., :i],
-                        func(inputs[..., i : i + 1]),
-                        inputs[..., i + 1 :],
-                    ],
-                    axis=-1,
-                )
-        return inputs
-
-    return f
-
-
 def get_input_normalization(u_min, u_max):
     @jax.jit
     def transform(inputs):
