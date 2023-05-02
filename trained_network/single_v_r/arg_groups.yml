@@ -66,10 +66,10 @@ optional arguments:
   job_name: fung
   setups_dir: fargo3d/setups
 par:
-  Alpha: 0.03252203722768833
+  Alpha: 0.00030000000000000014
   AmbipolarDiffusionCoeff: null
   Aspect: null
-  AspectRatio: 0.05908203125
+  AspectRatio: 0.05
   Autocolor: null
   Beta: null
   CFL: null
@@ -91,10 +91,10 @@ par:
   IndirectTerm: 'yes'
   KillingBCColatitude: null
   MassTaper: 314.1592653589793
-  Ninterm: 880
+  Ninterm: 133333
   Noise: null
   Nsnap: null
-  Ntot: 8808
+  Ntot: 1333333
   Nu: null
   Nx: 1143
   Ny: 381
@@ -107,7 +107,7 @@ par:
   PeriodicY: null
   PeriodicZ: null
   PlanetConfig: planets/jupiter.cfg
-  PlanetMass: 6.54183269911789e-05
+  PlanetMass: 5.011872336272725e-05
   PlotLine: null
   PlotLog: 'yes'
   RealType: null

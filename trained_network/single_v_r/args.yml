@@ -1,8 +1,9 @@
 Nnode: 50
 activation: tanh
 arg_groups_file: arg_groups.yml
-batch_size_data: 32
-data_dir: .
+batch_size_train: 32
+batch_size_val: 16
+data_loss_weighting: ''
 decay_rate: 0.9
 fargo_setups: fargo_setups.yml
 g_compute_method: initial_loss_weighted_sum
@@ -24,7 +25,7 @@ steps_per_log: 100
 steps_per_log_out_mag: 1000
 steps_per_resample: 3
 steps_per_save_model: 2000
-train_sample_percent: 0.875
+train_data_dir: .
 transition_steps: 2000
 u_max:
 - -1.0
@@ -44,6 +45,7 @@ u_transform:
 - ''
 - log10
 unknown: v_r
+val_data_dir: /scratch/symao/onet-disk2D-single/guild_home/pm_al_ar_fung_gap2steady4_2/runs/061b5e75ed16416aa9d06a02e01db99a
 y_net_layer_size:
 - 256
 - 256
