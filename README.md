@@ -33,11 +33,26 @@ pip install -r requirements.txt
 
 ## Examples
 
-### Without Data
+### Web app demo
 
 ```commandline
-python -m visualization.real_time_prediction_single_var --run_dir trained_network/single_log_sigma
+python -m visualization.real_time_prediction_single_var
+--run_dir trained_network/single_log_sigma
+--num_cell_radial 200 --num_cell_azimuthal 600
 ```
+And open the link you get from the terminal in your browser.
+
+### Predicting the solutions of a batch of disk-planet systems
+
+```commandline
+python -m onet_disk2D.predict 
+--run_dir trained_network/single_log_sigma 
+--parameter_file parameter_examples.csv 
+--save_dir trained_network/single_log_sigma/predictions 
+--num_cell_radial 200 --num_cell_azimuthal 600 
+--name pred
+```
+Please have a look at the `parameter_examples.csv` file for the format of the input parameter file. Add more rows of parameters as you wish. Be aware that the predictions are warranted only for the parameter ranges that the network is trained on.
 
 ## Built With
 
@@ -45,19 +60,26 @@ python -m visualization.real_time_prediction_single_var --run_dir trained_networ
 
 ## Versioning
 
-## Authors
+## The team
 
-* **Shunyuan Mao** - *Initial work* - [smao-astro](https://github.com/smao-astro/PPDONet)
-
-[//]: # ()
-[//]: # (See also the list of [contributors]&#40;https://github.com/your/project/contributors&#41; who participated in this project.)
+This software was developed by [Shunyuan Mao](https://github.com/smao-astro) under the supervision of Prof. Ruobing Dong at University of Victoria from 2022 to 2023.
 
 ## License
 
-[//]: # ()
-[//]: # (This project is licensed under the MIT License - see the [LICENSE.md]&#40;LICENSE.md&#41; file for details)
+This project is licensed under the GPL-3.0 license - see the LICENSE file for details.
 
 ## Acknowledgments
+
+The following people have contributed to the project:
+
+- **Lu Lu** - Department of Chemical and Biomolecular Engineering, University of Pennsylvania, Philadelphia, PA 19104, USA
+- **Kwang Moo Yi** - Department of Computer Science, University of British Columbia, Vancouver, BC V6T 1Z4, Canada
+- **Sifan Wang** - Graduate Group in Applied Mathematics and Computational Science, University of Pennsylvania, Philadelphia, PA 19104, USA
+- **Paris Perdikaris** - Department of Mechanical Engineering and Applied Mechanics, University of Pennsylvania, Philadelphia, PA 19104, USA
+
+We thank Pinaghui Huang, Zhenghao Xu, Xuening Bai, Wei Zhu, Jiequn Han, Yiwei Wang, Miles Cranmer, Chris Ormel, Hui Li, Xiaowei Jin, Shengze Cai, Bin Dong, Tie-Yan Liu, Xiaotian Gao, Wenlei Shi, Pablo Benítez-Llambay, Minhao Zhang, and Yinhao Wu for help and useful discussions in the project.
+
+S.M. and R.D. are supported by the Natural Sciences and Engineering Research Council of Canada (NSERC) and the Alfred P. Sloan Foundation. S.M. and R.D. acknowledge the support of the Government of Canada's New Frontiers in Research Fund (NFRF), [NFRFE-2022-00159]. This research was enabled in part by support provided by the [Digital Research Alliance of Canada](alliance.can.ca).
 
 [//]: # ()
 [//]: # (* Hat tip to anyone whose code was used)
