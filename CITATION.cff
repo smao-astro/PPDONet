@@ -1,9 +1,9 @@
 cff-version: 1.1.0
 message: "If you use this software, please cite it as below."
 authors:
-  - family-names: Mao
-    given-names: Shunyuan
+  - family-names: "Mao"
+    given-names: "Shunyuan"
     orcid: https://orcid.org/0009-0006-0889-3132
-title: PPDONet: Deep Operator Networks for Fast Prediction of Steady-State Solutions in Disk-Planet Systems
-version: v0.1.0-beta-2
+title: "PPDONet: Deep Operator Networks for Fast Prediction of Steady-State Solutions in Disk-Planet Systems"
+version: v0.1.0-beta-3
 date-released: 2023-05-03
