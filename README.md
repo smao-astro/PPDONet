@@ -38,7 +38,6 @@ pip install -r requirements.txt
 ```commandline
 python -m visualization.real_time_prediction_single_var
 --run_dir trained_network/single_log_sigma
---num_cell_radial 200 --num_cell_azimuthal 600
 ```
 And open the link you get from the terminal in your browser.
 

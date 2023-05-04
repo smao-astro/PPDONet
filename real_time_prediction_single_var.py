@@ -1,44 +1,34 @@
 """
 To optimize the computational cost, we can:
 1) reduce the grid resolution (easy to do)
-2) todo convert the data to a figure file (RGB array?), and then display it.
+2) convert the data to a figure file (RGB array?), and then display it.
 """
-import base64
+import argparse
+import pathlib
 
 # add a timer for import
 import time
-from io import BytesIO
-
-import matplotlib
-from matplotlib import pyplot as plt
-
-start_time = time.perf_counter()
-
-import argparse
-import pathlib
 
 import dash
 import dash_bootstrap_components as dbc
 import jax
-
-# deprecated in later version of jax
-# jax.config.update('jax_platforms_name', 'cpu')
-jax.config.update("jax_platforms", "cpu")
 import jax.numpy as jnp
+import matplotlib
 import numpy as np
-import skimage.transform
-
+from matplotlib import pyplot as plt
 
 import onet_disk2D.grids
 import onet_disk2D.model
 import onet_disk2D.run
+import onet_disk2D.visualization.slider
+from onet_disk2D.utils import timer
+from onet_disk2D.visualization.utils import mpl_to_uri
 
-# end of timer
-print(f"Import time: {time.perf_counter() - start_time:.2f} seconds")
+# deprecated in later version of jax
+# jax.config.update('jax_platforms_name', 'cpu')
+jax.config.update("jax_platforms", "cpu")
 
-# todo add guidance
-# todo add model infomation (scrollable window)
-# tod add progress bar
+# todo display software version
 
 # matplotlib config
 SMALL_SIZE = 8 * 1.5
@@ -54,17 +44,6 @@ plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
 plt.rc("figure", titlesize=BIGGER_SIZE)
 # font family
 plt.rcParams["font.family"] = "Times New Roman"
-
-
-# timer function decorator
-def timer(func):
-    def wrapper(*args, **kwargs):
-        start_time = time.perf_counter()
-        result = func(*args, **kwargs)
-        print(f"{func.__name__} time: {time.perf_counter() - start_time:.2f} seconds")
-        return result
-
-    return wrapper
 
 
 def get_parser():
@@ -86,18 +65,7 @@ def get_parser():
         help="Directory that store model files (params_struct.pkl, params.npy, etc). "
         "If empty, model_dir = run_dir. Use it for intermediate models in run_dir/xxx.",
     )
-
     # inputs
-    parser.add_argument(
-        "--num_cell_radial",
-        type=int,
-        help="Predicted image's radial resolution (NY in fargo3d).",
-    )
-    parser.add_argument(
-        "--num_cell_azimuthal",
-        type=int,
-        help="Predicted image's azimuthal resolution (NX in fargo3d).",
-    )
     parser.add_argument(
         "--nxy",
         type=int,
@@ -106,63 +74,6 @@ def get_parser():
     )
 
     return parser
-
-
-def mpl_to_uri(fig):
-    buf = BytesIO()
-    fig.savefig(buf, format="png")
-    buf.seek(0)
-    return "data:image/png;base64,{}".format(
-        base64.b64encode(buf.getvalue()).decode("utf-8")
-    )
-
-
-class CartesianToPolar:
-    def __init__(self, nxy, nr, ntheta, rmin, rmax, theta_min, theta_max):
-        self.nxy = nxy
-        self.nr = nr
-        self.ntheta = ntheta
-        self.rmin = rmin
-        self.rmax = rmax
-        self.theta_min = theta_min
-        self.theta_max = theta_max
-
-    def __call__(self, output_coor):
-        # pixel to coordinate
-        output_coor = 2 * self.rmax * (output_coor / self.nxy - 0.5)
-        """(column, row)"""
-
-        x, y = np.split(output_coor, 2, axis=1)
-        r = np.sqrt(x**2 + y**2)
-        theta = np.arctan2(y, x)
-        """from -pi to pi"""
-
-        # coordinate to pixel
-        r = np.asarray(
-            (r - self.rmin) / (self.rmax - self.rmin) * (self.nr - 1),
-            dtype=int,
-        )
-        theta = np.asarray(
-            (theta - self.theta_min)
-            / (self.theta_max - self.theta_min)
-            * (self.ntheta - 1),
-            dtype=int,
-        )
-
-        return np.hstack([theta, r])
-
-
-@timer
-def sample_y(num_cell_radial, num_cell_azimuthal):
-    ymin = float(job.fargo_setups["ymin"])
-    ymax = float(job.fargo_setups["ymax"])
-    ny = num_cell_radial if num_cell_radial else int(job.fargo_setups["ny"])
-    nx = num_cell_azimuthal if num_cell_azimuthal else int(job.fargo_setups["nx"])
-    # generate coords
-    grids = onet_disk2D.grids.Grids(
-        ymin=ymin, ymax=ymax, xmin=-np.pi, xmax=np.pi, ny=ny, nx=nx
-    )
-    return grids
 
 
 @timer
@@ -265,38 +176,31 @@ class Graph:
     def __init__(
         self,
         job,
-        num_cell_radial,
-        num_cell_azimuthal,
         nxy,
         vmin=-2,
         vmax=0.2,
         vcenter=0,
-        radial_limit=2.0,
+        plot_limit: float = 2.0,
     ):
         self.job = job
         self.nxy = nxy
         self.vmin = vmin
         self.vmax = vmax
         self.vcenter = vcenter
-        self.r_limit = radial_limit
+        self.r_min = float(job.fargo_setups["ymin"])
+        self.r_max = float(job.fargo_setups["ymax"])
+        self.xy_limit = plot_limit
 
-        self.y_grids = sample_y(num_cell_radial, num_cell_azimuthal)
-
-        # input for network
-        self.y_net = self.y_grids.coords_fargo_all[self.job.unknown_type].reshape(
-            (-1, 2)
-        )
-        self.r = self.y_grids.r_fargo_all[job.unknown_type]
-        self.theta = self.y_grids.theta_fargo_all[job.unknown_type]
-        self.cartesian_to_polar = CartesianToPolar(
-            nxy=nxy,
-            nr=len(self.r),
-            ntheta=len(self.theta),
-            rmin=min(self.r),
-            rmax=max(self.r),
-            theta_min=min(self.theta),
-            theta_max=max(self.theta),
-        )
+        self.x = self.y = np.linspace(-self.xy_limit, self.xy_limit, self.nxy)
+        x_grid, y_grid = np.meshgrid(self.x, self.y, indexing="xy")
+        """x_grid and y_grid are 2D arrays of shape (nxy, nxy)"""
+        self.r = np.sqrt(x_grid**2 + y_grid**2)
+        """r is a 2D array of shape (nxy, nxy)"""
+        self.r_mask = np.logical_and(self.r >= self.r_min, self.r <= self.r_max)
+        self.theta = np.arctan2(y_grid, x_grid)
+        """theta is a 2D array of shape (nxy, nxy)"""
+        self.y_net = np.stack([self.r, self.theta], axis=-1).reshape((-1, 2))
+        """y_net is a 2D array of shape (nxy**2, 2)"""
 
         # colorscale
         self.norm = CustomNormalize(self.vmin, self.vmax)
@@ -319,25 +223,16 @@ class Graph:
         inputs = {"u_net": u, "y_net": self.y_net}
         predict = self.job.s_pred_fn(self.job.model.params, self.job.state, inputs)
         # reshape
-        predict = predict.reshape(self.y_grids.ny, self.y_grids.nx)
+        predict = predict.reshape(self.nxy, self.nxy)
         # normalize by initial condition
-        predict = predict + 0.5 * np.log10(self.r)[:, None]
+        predict = predict + 0.5 * np.log10(self.r)
+        # mask
+        predict = np.where(self.r_mask, predict, np.nan)
         return predict
-
-    def to_cartesian(self, predict):
-        return skimage.transform.warp(
-            predict,
-            self.cartesian_to_polar,
-            output_shape=(self.nxy, self.nxy),
-            order=3,
-            # outside the simulation domain, no material
-            cval=-8,
-        )
 
     @timer
     def update(self, alpha, aspectratio, planetmass):
         predict = self.predict(alpha, aspectratio, planetmass)
-        predict = self.to_cartesian(predict)
 
         fig = plt.figure(layout="constrained")
         plt.imshow(
@@ -347,14 +242,12 @@ class Graph:
             aspect="equal",
             origin="lower",
             extent=(
-                -self.cartesian_to_polar.rmax,
-                self.cartesian_to_polar.rmax,
-                -self.cartesian_to_polar.rmax,
-                self.cartesian_to_polar.rmax,
+                -self.xy_limit,
+                self.xy_limit,
+                -self.xy_limit,
+                self.xy_limit,
             ),
         )
-        plt.xlim(-self.r_limit, self.r_limit)
-        plt.ylim(-self.r_limit, self.r_limit)
         plt.xlabel("X (Planet Radius)")
         plt.ylabel("Y (Planet Radius)")
         plt.title("Predicted normalized surface density", fontsize=BIGGER_SIZE)
@@ -562,8 +455,6 @@ left_column = dbc.Card(
 # set graph
 my_graph = Graph(
     job,
-    predict_args.num_cell_radial,
-    predict_args.num_cell_azimuthal,
     nxy=predict_args.nxy,
 )
 graph = dash.html.Img(

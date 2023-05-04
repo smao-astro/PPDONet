@@ -1,7 +1,8 @@
+import time
+
 import chex
-import jax.numpy as jnp
 import jax
-from functools import partial
+import jax.numpy as jnp
 
 
 @jax.jit
@@ -40,3 +41,14 @@ def to_linear(u: chex.Array, col_idx_to_apply: chex.Array) -> chex.Array:
     u = jax.vmap(apply_log_transform, in_axes=(-1, 0), out_axes=-1)(u, col_idx_to_apply)
 
     return u
+
+
+# timer function decorator
+def timer(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        print(f"{func.__name__} time: {time.perf_counter() - start_time:.2f} seconds")
+        return result
+
+    return wrapper
