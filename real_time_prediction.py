@@ -4,11 +4,11 @@ To optimize the computational cost, we can:
 2) convert the data to a figure file (RGB array?), and then display it.
 """
 import argparse
+import functools
 import importlib.resources as pkg_resources
 import pathlib
-
-# add a timer for import
 import time
+from typing import Mapping
 
 import dash
 import dash_bootstrap_components as dbc
@@ -52,17 +52,56 @@ plt.rcParams["font.family"] = "Times New Roman"
 def get_parser():
     parser = argparse.ArgumentParser()
     # IO
-    parser.add_argument("--run_dir", type=str, required=True)
+    ## sigma
+    parser.add_argument("--sigma_run_dir", type=str, required=True)
     parser.add_argument(
-        "--args_file",
+        "--sigma_args_file",
         type=str,
         default="args.yml",
         help="file that logs training args.",
     )
-    parser.add_argument("--arg_groups_file", type=str, default="arg_groups.yml")
-    parser.add_argument("--fargo_setup_file", type=str, default="fargo_setups.yml")
+    parser.add_argument("--sigma_arg_groups_file", type=str, default="arg_groups.yml")
     parser.add_argument(
-        "--model_dir",
+        "--sigma_fargo_setup_file", type=str, default="fargo_setups.yml"
+    )
+    parser.add_argument(
+        "--sigma_model_dir",
+        type=str,
+        default="",
+        help="Directory that store model files (params_struct.pkl, params.npy, etc). "
+        "If empty, model_dir = run_dir. Use it for intermediate models in run_dir/xxx.",
+    )
+    ## v_r
+    parser.add_argument("--v_r_run_dir", type=str, required=True)
+    parser.add_argument(
+        "--v_r_args_file",
+        type=str,
+        default="args.yml",
+        help="file that logs training args.",
+    )
+    parser.add_argument("--v_r_arg_groups_file", type=str, default="arg_groups.yml")
+    parser.add_argument("--v_r_fargo_setup_file", type=str, default="fargo_setups.yml")
+    parser.add_argument(
+        "--v_r_model_dir",
+        type=str,
+        default="",
+        help="Directory that store model files (params_struct.pkl, params.npy, etc). "
+        "If empty, model_dir = run_dir. Use it for intermediate models in run_dir/xxx.",
+    )
+    ## v_theta
+    parser.add_argument("--v_theta_run_dir", type=str, required=True)
+    parser.add_argument(
+        "--v_theta_args_file",
+        type=str,
+        default="args.yml",
+        help="file that logs training args.",
+    )
+    parser.add_argument("--v_theta_arg_groups_file", type=str, default="arg_groups.yml")
+    parser.add_argument(
+        "--v_theta_fargo_setup_file", type=str, default="fargo_setups.yml"
+    )
+    parser.add_argument(
+        "--v_theta_model_dir",
         type=str,
         default="",
         help="Directory that store model files (params_struct.pkl, params.npy, etc). "
@@ -77,63 +116,6 @@ def get_parser():
     )
 
     return parser
-
-
-# @timer
-# def setup_slider():
-#     # set parameter bars
-#     alpha_min = job.args["u_min"][0]
-#     alpha_max = job.args["u_max"][0]
-#     alpha_slider = dash.dcc.Slider(
-#         min=alpha_min,
-#         max=alpha_max,
-#         marks={
-#             v: {
-#                 "label": f"{10 ** v:.1g}",
-#                 # "style": {"font-size": font_size}
-#             }
-#             # the stop parameter is alpha_max, but it won't be included in the slider range for whatever reason, minus 1e-4 to include it
-#             for v in np.linspace(alpha_min, alpha_max - 1e-4, 4)
-#         },
-#         value=-3,
-#         className="mb-3",
-#         # tooltip={"placement": "top", "always_visible": True},
-#     )
-#     aspectratio_min = job.args["u_min"][1]
-#     aspectratio_max = job.args["u_max"][1]
-#     aspectratio_slider = dash.dcc.Slider(
-#         min=aspectratio_min,
-#         max=aspectratio_max,
-#         marks={
-#             v: {
-#                 "label": f"{v:.1g}",
-#                 # "style": {"font-size": font_size}
-#             }
-#             for v in np.linspace(aspectratio_min, aspectratio_max, 4)
-#         },
-#         value=0.05,
-#         className="mb-3",
-#         # tooltip={"placement": "top", "always_visible": True},
-#     )
-#     planetmass_min = job.args["u_min"][2]
-#     planetmass_max = job.args["u_max"][2]
-#     mj = 9.548e-4
-#     planetmass_slider = dash.dcc.Slider(
-#         min=planetmass_min,
-#         max=planetmass_max,
-#         marks={
-#             v: {
-#                 "label": f"{10 ** v/mj:.1g}",
-#                 # "style": {"font-size": font_size}
-#             }
-#             for v in np.linspace(planetmass_min, planetmass_max, 4)
-#         },
-#         value=-3,
-#         className="mb-3",
-#         # tooltip={"placement": "top", "always_visible": True},
-#     )
-#
-#     return alpha_slider, aspectratio_slider, planetmass_slider
 
 
 class CustomNormalize(matplotlib.colors.Normalize):
@@ -176,20 +158,18 @@ class CustomNormalize(matplotlib.colors.Normalize):
 class Graph:
     def __init__(
         self,
-        job,
-        nxy,
-        vmin=-2,
-        vmax=0.2,
-        vcenter=0,
+        jobs,
+        nxy: int,
+        vmin: Mapping[str, float],
+        vmax: Mapping[str, float],
         plot_limit: float = 2.0,
     ):
-        self.job = job
+        self.jobs = jobs
         self.nxy = nxy
         self.vmin = vmin
         self.vmax = vmax
-        self.vcenter = vcenter
-        self.r_min = float(job.fargo_setups["ymin"])
-        self.r_max = float(job.fargo_setups["ymax"])
+        self.r_min = float(jobs["sigma"].fargo_setups["ymin"])
+        self.r_max = float(jobs["sigma"].fargo_setups["ymax"])
         self.xy_limit = plot_limit
 
         self.x = self.y = np.linspace(-self.xy_limit, self.xy_limit, self.nxy)
@@ -203,43 +183,110 @@ class Graph:
         self.y_net = np.stack([self.r, self.theta], axis=-1).reshape((-1, 2))
         """y_net is a 2D array of shape (nxy**2, 2)"""
 
-        # colorscale
-        self.norm = CustomNormalize(self.vmin, self.vmax)
-        self.colormap = matplotlib.colormaps["jet"]
-        # colorbar
-        self.colorbar_ticks = np.array([-2, -1, 0, self.vmax / 2.0, self.vmax])
-        self.colorbar_ticktext = [
-            "0.01",
-            "0.1",
-            "1",
-            f"{10**(self.vmax/2.):.1f}",
-            f"{10**self.vmax:.1f}",
-        ]
+    @functools.cached_property
+    def norm(self):
+        return {
+            "sigma": CustomNormalize(vmin=self.vmin["sigma"], vmax=self.vmax["sigma"]),
+            "v_r": matplotlib.colors.SymLogNorm(
+                linthresh=0.03,
+                linscale=0.1,
+                vmin=self.vmin["v_r"],
+                vmax=self.vmax["v_r"],
+            ),
+            "v_theta": matplotlib.colors.SymLogNorm(
+                linthresh=0.03,
+                linscale=0.1,
+                vmin=self.vmin["v_theta"],
+                vmax=self.vmax["v_theta"],
+            ),
+        }
+
+    @functools.cached_property
+    def colormap(self):
+        return {
+            "sigma": matplotlib.colormaps["jet"],
+            "v_r": matplotlib.colormaps["RdBu_r"],
+            "v_theta": matplotlib.colormaps["RdBu_r"],
+        }
+
+    @functools.cached_property
+    def colorbar_ticks(self):
+        return {
+            "sigma": np.array(
+                [-2, -1, 0, self.vmax["sigma"] / 2.0, self.vmax["sigma"]]
+            ),
+            "v_r": np.array([-1, -0.5, 0, 0.5, 1]),
+            "v_theta": np.array([-1, -0.5, 0, 0.5, 1]),
+        }
+
+    @functools.cached_property
+    def colorbar_ticktext(self):
+        return {
+            "sigma": [
+                "0.01",
+                "0.1",
+                "1",
+                f"{10**(self.vmax['sigma']/2.):.1f}",
+                f"{10**self.vmax['sigma']:.1f}",
+            ],
+            "v_r": ["-1", "-0.5", "0", "0.5", "1"],
+            "v_theta": ["-1", "-0.5", "0", "0.5", "1"],
+        }
+
+    @functools.cached_property
+    def fig_title(self):
+        return {
+            "sigma": "Predicted normalized surface density",
+            "v_r": "Predicted perturbed radial velocity",
+            "v_theta": "Predicted perturbed azimuthal velocity",
+        }
 
     @timer
-    def predict(self, alpha, aspectratio, planetmass):
+    def predict(self, alpha, aspectratio, planetmass, phy_variable):
         alpha = 10.0**alpha
         planetmass = 10.0**planetmass
         u = jnp.array([alpha, aspectratio, planetmass])[None, :]
         inputs = {"u_net": u, "y_net": self.y_net}
-        predict = self.job.s_pred_fn(self.job.model.params, self.job.state, inputs)
+        job = jobs[phy_variable]
+        predict = job.s_pred_fn(job.model.params, job.state, inputs)
         # reshape
         predict = predict.reshape(self.nxy, self.nxy)
-        # normalize by initial condition
-        predict = predict + 0.5 * np.log10(self.r)
+        if phy_variable == "sigma":
+            # normalize by initial condition
+            predict = predict + 0.5 * np.log10(self.r)
+        elif phy_variable == "v_r":
+            cs = aspectratio
+            # remove initial condition (background) to get perturbed v_r
+            predict -= (
+                -1.5 * alpha * aspectratio**2 * np.sqrt((1.0 + planetmass) / self.r)
+            )
+            # normalize by sound speed
+            predict = predict / cs
+        elif phy_variable == "v_theta":
+            cs = aspectratio
+            # convert to non-rotating frame
+            predict += self.r
+            # remove initial condition (background) to get perturbed v_theta
+            predict -= np.sqrt(1 - 1.5 * aspectratio**2) * np.sqrt(
+                (1.0 + planetmass) / self.r
+            )
+            # normalize by sound speed
+            predict = predict / cs
+        else:
+            raise ValueError(f"Unknown phy_variable: {phy_variable}")
         # mask
         predict = np.where(self.r_mask, predict, np.nan)
         return predict
 
     @timer
-    def update(self, alpha, aspectratio, planetmass):
-        predict = self.predict(alpha, aspectratio, planetmass)
+    def update(self, alpha, aspectratio, planetmass, phy_variable):
+        predict = self.predict(alpha, aspectratio, planetmass, phy_variable)
 
         fig = plt.figure(layout="constrained")
         plt.imshow(
             predict,
-            cmap=self.colormap,
-            norm=self.norm,
+            cmap=self.colormap[phy_variable],
+            norm=self.norm[phy_variable],
             aspect="equal",
             origin="lower",
             extent=(
@@ -251,33 +298,28 @@ class Graph:
         )
         plt.xlabel("X (Planet Radius)")
         plt.ylabel("Y (Planet Radius)")
-        plt.title("Predicted normalized surface density", fontsize=BIGGER_SIZE)
-        cbar = plt.colorbar(ticks=self.colorbar_ticks)
-        cbar.ax.set_yticklabels(self.colorbar_ticktext)
+        plt.title(self.fig_title[phy_variable], fontsize=BIGGER_SIZE)
+        cbar = plt.colorbar(ticks=self.colorbar_ticks[phy_variable])
+        cbar.ax.set_yticklabels(self.colorbar_ticktext[phy_variable])
 
         # Convert the Matplotlib figure to an image URI and return it
         return onet_disk2D.visualization.mpl_to_uri(fig)
 
 
 @timer
-def load_model(predict_args):
-    """Load model from checkpoint.
-
-    Args:
-        predict_args: parsed arguments from command line
-
-    """
-    run_dir = pathlib.Path(predict_args.run_dir).resolve()
-    if predict_args.model_dir:
-        model_dir = pathlib.Path(predict_args.model_dir).resolve()
+def load_model(run_dir, args_file, arg_groups_file, fargo_setup_file, model_dir):
+    """Load model from checkpoint."""
+    run_dir = pathlib.Path(run_dir).resolve()
+    if model_dir:
+        model_dir = pathlib.Path(model_dir).resolve()
     else:
         model_dir = run_dir
 
     job_args = onet_disk2D.run.load_job_args(
         run_dir,
-        predict_args.args_file,
-        predict_args.arg_groups_file,
-        predict_args.fargo_setup_file,
+        args_file,
+        arg_groups_file,
+        fargo_setup_file,
     )
 
     job = onet_disk2D.run.JOB(job_args)
@@ -292,10 +334,26 @@ else:
     # if "gunicorn" in os.environ.get("SERVER_SOFTWARE", ""):
     # running on gunicorn server (Heroku)
     predict_args = get_parser().parse_args(
-        ["--run_dir", "trained_network/single_log_sigma", "--nxy", "512"]
+        [
+            "--sigma_run_dir",
+            "trained_network/single_log_sigma",
+            "--v_r_run_dir",
+            "trained_network/single_log_v_r",
+            "--v_theta_run_dir",
+            "trained_network/single_log_v_theta",
+        ]
     )
 
-job = load_model(predict_args)
+jobs = {
+    k: load_model(
+        getattr(predict_args, k + "_run_dir"),
+        getattr(predict_args, k + "_args_file"),
+        getattr(predict_args, k + "_arg_groups_file"),
+        getattr(predict_args, k + "_fargo_setup_file"),
+        getattr(predict_args, k + "_model_dir"),
+    )
+    for k in ["sigma", "v_r", "v_theta"]
+}
 
 # add a timer for initialize app
 start = time.perf_counter()
@@ -316,8 +374,9 @@ app = dash.Dash(
 )
 server = app.server
 
+# todo update the readme
 with pkg_resources.open_text(
-    "onet_disk2D.visualization", "real_time_prediction_single_var_readme.md"
+    "onet_disk2D.visualization", "real_time_prediction_readme.md"
 ) as f:
     readme = f.read()
 modal_content = dash.dcc.Markdown(readme, mathjax=True)
@@ -363,15 +422,42 @@ header_row = dbc.Row(
 alpha_text = dash.dcc.Markdown(mathjax=True)
 aspectratio_text = dash.dcc.Markdown(mathjax=True)
 planetmass_text = dash.dcc.Markdown(mathjax=True)
-alpha_slider = onet_disk2D.visualization.setup_alpha_slider(
-    job.args["u_min"][0], job.args["u_max"][0]
-)
+
+# ===========
+# set up the sliders
+# check if the u_min and u_max are the same for all jobs
+u_min_all = [job.args["u_min"] for job in jobs.values()]
+u_max_all = [job.args["u_max"] for job in jobs.values()]
+if not all(np.array_equal(u_min_all[0], u_min) for u_min in u_min_all):
+    raise ValueError("u_min are not the same for all jobs")
+if not all(np.array_equal(u_max_all[0], u_max) for u_max in u_max_all):
+    raise ValueError("u_max are not the same for all jobs")
+u_min = u_min_all[0]
+u_max = u_max_all[0]
+alpha_slider = onet_disk2D.visualization.setup_alpha_slider(u_min[0], u_max[0])
 aspectratio_slider = onet_disk2D.visualization.setup_aspectratio_slider(
-    job.args["u_min"][1], job.args["u_max"][1]
+    u_min[1], u_max[1]
 )
 planetmass_slider = onet_disk2D.visualization.setup_planetmass_slider(
-    job.args["u_min"][2], job.args["u_max"][2]
+    u_min[2], u_max[2]
 )
+# ===========
+
+# ===========
+# setup the dropdown
+dropdown = dash.dcc.Dropdown(
+    options=[
+        {"label": "Surface density", "value": "sigma"},
+        {"label": "Radial velocity", "value": "v_r"},
+        {"label": "Azimuthal velocity", "value": "v_theta"},
+    ],
+    value="sigma",
+    # className=""
+)
+# ===========
+
+# ===========
+# set up the left column
 left_column = [
     alpha_text,
     alpha_slider,
@@ -379,6 +465,7 @@ left_column = [
     aspectratio_slider,
     planetmass_text,
     planetmass_slider,
+    dropdown,
 ]
 left_column = dbc.Card(
     [
@@ -390,11 +477,20 @@ left_column = dbc.Card(
     # prevent left column and right column overlap on small screen
     className="text-body mb-4 mb-lg-0",
 )
+# ===========
+
+vmin = {
+    "sigma": -2,
+    "v_r": -1.0,
+    "v_theta": -1.0,
+}
+vmax = {
+    "sigma": 0.2,
+    "v_r": 1.0,
+    "v_theta": 1.0,
+}
 # set graph
-my_graph = Graph(
-    job,
-    nxy=predict_args.nxy,
-)
+my_graph = Graph(jobs, nxy=predict_args.nxy, vmin=vmin, vmax=vmax)
 graph = dash.html.Img(
     style={
         "width": "100%",
@@ -451,6 +547,7 @@ app.callback(
     dash.Input(alpha_slider, component_property="value"),
     dash.Input(aspectratio_slider, component_property="value"),
     dash.Input(planetmass_slider, component_property="value"),
+    dash.Input(dropdown, component_property="value"),
 )(my_graph.update)
 
 app.callback(

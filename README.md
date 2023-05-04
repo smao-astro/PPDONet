@@ -36,19 +36,23 @@ pip install -r requirements.txt
 ### Web app demo
 
 ```commandline
-python -m visualization.real_time_prediction_single_var
---run_dir trained_network/single_log_sigma
+python real_time_prediction.py \
+--sigma_run_dir trained_network/single_log_sigma \
+--v_r_run_dir trained_network/single_v_r \
+--v_theta_run_dir trained_network/single_v_theta \
+--nxy 256
 ```
 And open the link you get from the terminal in your browser.
 
 ### Predicting the solutions of a batch of disk-planet systems
 
 ```commandline
-python -m onet_disk2D.predict 
---run_dir trained_network/single_log_sigma 
---parameter_file parameter_examples.csv 
---save_dir trained_network/single_log_sigma/predictions 
---num_cell_radial 200 --num_cell_azimuthal 600 
+python -m onet_disk2D.predict \
+--run_dir trained_network/single_log_sigma \
+--parameter_file parameter_examples.csv \
+--save_dir trained_network/single_log_sigma/predictions \
+--num_cell_radial 200 \
+--num_cell_azimuthal 600 \
 --name pred
 ```
 Please have a look at the `parameter_examples.csv` file for the format of the input parameter file. Add more rows of parameters as you wish. Be aware that the predictions are warranted only for the parameter ranges that the network is trained on.
