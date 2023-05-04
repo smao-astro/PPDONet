@@ -20,9 +20,8 @@ from matplotlib import pyplot as plt
 import onet_disk2D.grids
 import onet_disk2D.model
 import onet_disk2D.run
-import onet_disk2D.visualization.slider
+import onet_disk2D.visualization
 from onet_disk2D.utils import timer
-from onet_disk2D.visualization.utils import mpl_to_uri
 
 # deprecated in later version of jax
 # jax.config.update('jax_platforms_name', 'cpu')
@@ -76,63 +75,61 @@ def get_parser():
     return parser
 
 
-@timer
-def setup_slider():
-    # todo improve the slider with https://twitter.com/plotlygraphs/status/1356259511330349060?s=20
-    # todo add boundary
-    # set parameter bars
-    alpha_min = job.args["u_min"][0]
-    alpha_max = job.args["u_max"][0]
-    alpha_slider = dash.dcc.Slider(
-        min=alpha_min,
-        max=alpha_max,
-        marks={
-            v: {
-                "label": f"{10 ** v:.1g}",
-                # "style": {"font-size": font_size}
-            }
-            # the stop parameter is alpha_max, but it won't be included in the slider range for whatever reason, minus 1e-4 to include it
-            for v in np.linspace(alpha_min, alpha_max - 1e-4, 4)
-        },
-        value=-3,
-        className="mb-3",
-        # tooltip={"placement": "top", "always_visible": True},
-    )
-    aspectratio_min = job.args["u_min"][1]
-    aspectratio_max = job.args["u_max"][1]
-    aspectratio_slider = dash.dcc.Slider(
-        min=aspectratio_min,
-        max=aspectratio_max,
-        marks={
-            v: {
-                "label": f"{v:.1g}",
-                # "style": {"font-size": font_size}
-            }
-            for v in np.linspace(aspectratio_min, aspectratio_max, 4)
-        },
-        value=0.05,
-        className="mb-3",
-        # tooltip={"placement": "top", "always_visible": True},
-    )
-    planetmass_min = job.args["u_min"][2]
-    planetmass_max = job.args["u_max"][2]
-    mj = 9.548e-4
-    planetmass_slider = dash.dcc.Slider(
-        min=planetmass_min,
-        max=planetmass_max,
-        marks={
-            v: {
-                "label": f"{10 ** v/mj:.1g}",
-                # "style": {"font-size": font_size}
-            }
-            for v in np.linspace(planetmass_min, planetmass_max, 4)
-        },
-        value=-3,
-        className="mb-3",
-        # tooltip={"placement": "top", "always_visible": True},
-    )
-
-    return alpha_slider, aspectratio_slider, planetmass_slider
+# @timer
+# def setup_slider():
+#     # set parameter bars
+#     alpha_min = job.args["u_min"][0]
+#     alpha_max = job.args["u_max"][0]
+#     alpha_slider = dash.dcc.Slider(
+#         min=alpha_min,
+#         max=alpha_max,
+#         marks={
+#             v: {
+#                 "label": f"{10 ** v:.1g}",
+#                 # "style": {"font-size": font_size}
+#             }
+#             # the stop parameter is alpha_max, but it won't be included in the slider range for whatever reason, minus 1e-4 to include it
+#             for v in np.linspace(alpha_min, alpha_max - 1e-4, 4)
+#         },
+#         value=-3,
+#         className="mb-3",
+#         # tooltip={"placement": "top", "always_visible": True},
+#     )
+#     aspectratio_min = job.args["u_min"][1]
+#     aspectratio_max = job.args["u_max"][1]
+#     aspectratio_slider = dash.dcc.Slider(
+#         min=aspectratio_min,
+#         max=aspectratio_max,
+#         marks={
+#             v: {
+#                 "label": f"{v:.1g}",
+#                 # "style": {"font-size": font_size}
+#             }
+#             for v in np.linspace(aspectratio_min, aspectratio_max, 4)
+#         },
+#         value=0.05,
+#         className="mb-3",
+#         # tooltip={"placement": "top", "always_visible": True},
+#     )
+#     planetmass_min = job.args["u_min"][2]
+#     planetmass_max = job.args["u_max"][2]
+#     mj = 9.548e-4
+#     planetmass_slider = dash.dcc.Slider(
+#         min=planetmass_min,
+#         max=planetmass_max,
+#         marks={
+#             v: {
+#                 "label": f"{10 ** v/mj:.1g}",
+#                 # "style": {"font-size": font_size}
+#             }
+#             for v in np.linspace(planetmass_min, planetmass_max, 4)
+#         },
+#         value=-3,
+#         className="mb-3",
+#         # tooltip={"placement": "top", "always_visible": True},
+#     )
+#
+#     return alpha_slider, aspectratio_slider, planetmass_slider
 
 
 class CustomNormalize(matplotlib.colors.Normalize):
@@ -255,53 +252,7 @@ class Graph:
         cbar.ax.set_yticklabels(self.colorbar_ticktext)
 
         # Convert the Matplotlib figure to an image URI and return it
-        return mpl_to_uri(fig)
-
-
-@timer
-def update_alpha(alpha):
-    """
-
-    Args:
-        alpha: in log10
-
-    Returns:
-
-    """
-    alpha = f"{10.0**alpha:.2e}"
-    if "e" in alpha:
-        base, exponent = alpha.split("e")
-        alpha = r"${0} \times 10^{{{1}}}$".format(base, int(exponent))
-    return r"Alpha viscosity ($\alpha$): " + alpha
-
-
-@timer
-def update_aspectratio(aspectratio):
-    """
-
-    Args:
-        aspectratio: in linear scale
-
-    Returns:
-
-    """
-    return r"Scale height ($h_0$): " + f"{aspectratio:.3f}"
-
-
-@timer
-def update_planetmass(planetmass):
-    """
-
-    Args:
-        planetmass: in log10
-
-    Returns:
-
-    """
-    # jupiter mass to solar mass ratio
-    mj = 9.548e-4
-    planetmass = f"{10.0**planetmass/mj:.3f}"
-    return r"Planet mass ($M_p$): " + planetmass + " $M_J$"
+        return onet_disk2D.visualization.mpl_to_uri(fig)
 
 
 @timer
@@ -433,7 +384,15 @@ header_row = dbc.Row(
 alpha_text = dash.dcc.Markdown(mathjax=True)
 aspectratio_text = dash.dcc.Markdown(mathjax=True)
 planetmass_text = dash.dcc.Markdown(mathjax=True)
-alpha_slider, aspectratio_slider, planetmass_slider = setup_slider()
+alpha_slider = onet_disk2D.visualization.setup_alpha_slider(
+    job.args["u_min"][0], job.args["u_max"][0]
+)
+aspectratio_slider = onet_disk2D.visualization.setup_aspectratio_slider(
+    job.args["u_min"][1], job.args["u_max"][1]
+)
+planetmass_slider = onet_disk2D.visualization.setup_planetmass_slider(
+    job.args["u_min"][2], job.args["u_max"][2]
+)
 left_column = [
     alpha_text,
     alpha_slider,
@@ -518,17 +477,17 @@ app.callback(
 app.callback(
     dash.Output(alpha_text, component_property="children"),
     dash.Input(alpha_slider, component_property="value"),
-)(update_alpha)
+)(onet_disk2D.visualization.update_alpha_text)
 
 app.callback(
     dash.Output(aspectratio_text, component_property="children"),
     dash.Input(aspectratio_slider, component_property="value"),
-)(update_aspectratio)
+)(onet_disk2D.visualization.update_aspectratio_text)
 
 app.callback(
     dash.Output(planetmass_text, component_property="children"),
     dash.Input(planetmass_slider, component_property="value"),
-)(update_planetmass)
+)(onet_disk2D.visualization.update_planetmass_text)
 
 if __name__ == "__main__":
     # Warning: the lines below should not be executed when running on Heroku/PythonAnywhere
