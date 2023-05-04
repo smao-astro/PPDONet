@@ -289,14 +289,7 @@ else:
     # if "gunicorn" in os.environ.get("SERVER_SOFTWARE", ""):
     # running on gunicorn server (Heroku)
     predict_args = get_parser().parse_args(
-        [
-            "--run_dir",
-            "trained_network/single_log_sigma",
-            "--num_cell_radial",
-            "200",
-            "--num_cell_azimuthal",
-            "600",
-        ]
+        ["--run_dir", "trained_network/single_log_sigma", "--nxy", "512"]
     )
 
 job = load_model(predict_args)
