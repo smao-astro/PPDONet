@@ -10,6 +10,7 @@ import pathlib
 import time
 from typing import Mapping
 
+import astropy.io.fits as fits_module
 import dash
 import dash_bootstrap_components as dbc
 import jax
@@ -305,6 +306,31 @@ class Graph:
         # Convert the Matplotlib figure to an image URI and return it
         return onet_disk2D.visualization.mpl_to_uri(fig)
 
+    def write_fits(self, bytes_io, alpha, aspectratio, planetmass, phy_variable):
+        predict = self.predict(alpha, aspectratio, planetmass, phy_variable)
+        primary_hdu = fits_module.PrimaryHDU()
+        # write some info to the header
+        primary_hdu.header["ALPHA"] = (10**alpha, "Alpha viscosity")
+        primary_hdu.header["H0"] = (
+            aspectratio,
+            "Disk aspect ratio, constant in the disk",
+        )
+        primary_hdu.header["PMASS"] = (10**planetmass, "Planet-to-star mass ratio")
+        fits_data = fits_module.HDUList(
+            [primary_hdu, fits_module.ImageHDU(data=predict)]
+        )
+        fits_data.writeto(bytes_io)
+
+    def download(self, alpha, aspectratio, planetmass, phy_variable, n_clicks):
+        return dash.dcc.send_bytes(
+            src=self.write_fits,
+            filename=f"alpha_{alpha:.2e}_h0_{aspectratio:.2f}_q_{planetmass:.2e}_{phy_variable}.fits",
+            alpha=alpha,
+            aspectratio=aspectratio,
+            planetmass=planetmass,
+            phy_variable=phy_variable,
+        )
+
 
 @timer
 def load_model(run_dir, args_file, arg_groups_file, fargo_setup_file, model_dir):
@@ -480,9 +506,11 @@ dropdown_card = dbc.Card(
         dbc.CardHeader("Select quantity to view", className="fs-3"),
         dbc.CardBody(dropdown),
     ],
+    className="text-body mb-3 mb-lg-2",
 )
 # ===========
-
+download_button = dbc.Button("Download FITS", color="primary", size="lg")
+download = dash.dcc.Download()
 
 vmin = {
     "sigma": -2,
@@ -506,7 +534,12 @@ graph = dash.html.Img(
 content_row = dbc.Row(
     [
         dbc.Col(
-            [sliders, dropdown_card],
+            [
+                sliders,
+                dropdown_card,
+                dash.html.Div([download_button], className="d-grid gap-2 mb-3 mb-lg-0"),
+                download,
+            ],
             xs=10,
             sm=10,
             md=10,
@@ -570,12 +603,22 @@ app.callback(
     dash.Input(planetmass_slider, component_property="value"),
 )(onet_disk2D.visualization.update_planetmass_text)
 
+app.callback(
+    dash.Output(download, "data"),
+    dash.Input(alpha_slider, component_property="value"),
+    dash.Input(aspectratio_slider, component_property="value"),
+    dash.Input(planetmass_slider, component_property="value"),
+    dash.Input(dropdown, component_property="value"),
+    dash.Input(download_button, "n_clicks"),
+    prevent_initial_call=True,
+)(my_graph.download)
+
 if __name__ == "__main__":
     # Warning: the lines below should not be executed when running on Heroku/PythonAnywhere
     # See https://help.pythonanywhere.com/pages/Flask/#do-not-use-apprun
     # run server
     # app.run(debug=True)
-    app.run(debug=True, port=8052)
+    app.run(debug=False, port=8052)
 
 # end timer
 print(f"Initialize app takes {time.perf_counter() - start:.2f} seconds")

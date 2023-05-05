@@ -1,3 +1,4 @@
+astropy>=5.2.2
 jax>=0.4.6
 jaxlib>=0.4.6
 dm-haiku>=0.0.9
