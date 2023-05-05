@@ -364,9 +364,9 @@ else:
             "--sigma_run_dir",
             "trained_network/single_log_sigma",
             "--v_r_run_dir",
-            "trained_network/single_log_v_r",
+            "trained_network/single_v_r",
             "--v_theta_run_dir",
-            "trained_network/single_log_v_theta",
+            "trained_network/single_v_theta",
         ]
     )
 
