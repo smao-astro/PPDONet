@@ -160,20 +160,16 @@ class CustomNormalize(matplotlib.colors.Normalize):
 class Graph:
     def __init__(
         self,
-        predict_args,
         nxy: int,
-        r_min: float,
-        r_max: float,
         vmin: Mapping[str, float],
         vmax: Mapping[str, float],
         plot_limit: float = 2.0,
     ):
-        self.predict_args = predict_args
         self.nxy = nxy
         self.vmin = vmin
         self.vmax = vmax
-        self.r_min = r_min
-        self.r_max = r_max
+        self.r_min = float(jobs["sigma"].fargo_setups["ymin"])
+        self.r_max = float(jobs["sigma"].fargo_setups["ymax"])
         self.xy_limit = plot_limit
 
         self.x = self.y = np.linspace(-self.xy_limit, self.xy_limit, self.nxy)
@@ -251,13 +247,7 @@ class Graph:
         planetmass = 10.0**planetmass
         u = jnp.array([alpha, aspectratio, planetmass])[None, :]
         inputs = {"u_net": u, "y_net": self.y_net}
-        job = load_model(
-            getattr(predict_args, phy_variable + "_run_dir"),
-            getattr(predict_args, phy_variable + "_args_file"),
-            getattr(predict_args, phy_variable + "_arg_groups_file"),
-            getattr(predict_args, phy_variable + "_fargo_setup_file"),
-            getattr(predict_args, phy_variable + "_model_dir"),
-        )
+        job = jobs[phy_variable]
         predict = job.s_pred_fn(job.model.params, job.state, inputs)
         # reshape
         predict = predict.reshape(self.nxy, self.nxy)
@@ -376,19 +366,21 @@ else:
             "trained_network/single_v_r",
             "--v_theta_run_dir",
             "trained_network/single_v_theta",
+            "--nxy",
+            "256",
         ]
     )
 
-# jobs = {
-#     k: load_model(
-#         getattr(predict_args, k + "_run_dir"),
-#         getattr(predict_args, k + "_args_file"),
-#         getattr(predict_args, k + "_arg_groups_file"),
-#         getattr(predict_args, k + "_fargo_setup_file"),
-#         getattr(predict_args, k + "_model_dir"),
-#     )
-#     for k in ["sigma", "v_r", "v_theta"]
-# }
+jobs = {
+    k: load_model(
+        getattr(predict_args, k + "_run_dir"),
+        getattr(predict_args, k + "_args_file"),
+        getattr(predict_args, k + "_arg_groups_file"),
+        getattr(predict_args, k + "_fargo_setup_file"),
+        getattr(predict_args, k + "_model_dir"),
+    )
+    for k in ["sigma", "v_r", "v_theta"]
+}
 
 # add a timer for initialize app
 start = time.perf_counter()
@@ -468,12 +460,6 @@ with (pathlib.Path(predict_args.sigma_run_dir) / predict_args.sigma_args_file).o
     sigma_args = yaml.safe_load(f)
     u_min = sigma_args["u_min"]
     u_max = sigma_args["u_max"]
-with (
-    pathlib.Path(predict_args.sigma_run_dir) / predict_args.sigma_fargo_setup_file
-).open("r") as f:
-    fargo_setups = yaml.safe_load(f)
-    r_min = float(fargo_setups["YMIN"])
-    r_max = float(fargo_setups["YMAX"])
 
 alpha_slider = onet_disk2D.visualization.setup_alpha_slider(u_min[0], u_max[0])
 aspectratio_slider = onet_disk2D.visualization.setup_aspectratio_slider(
@@ -538,9 +524,7 @@ vmax = {
     "v_theta": 1.0,
 }
 # set graph
-my_graph = Graph(
-    predict_args, nxy=predict_args.nxy, r_min=r_min, r_max=r_max, vmin=vmin, vmax=vmax
-)
+my_graph = Graph(nxy=predict_args.nxy, vmin=vmin, vmax=vmax)
 graph = dash.html.Img(
     style={
         "width": "100%",
