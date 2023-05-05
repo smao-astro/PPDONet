@@ -605,10 +605,10 @@ app.callback(
 
 app.callback(
     dash.Output(download, "data"),
-    dash.Input(alpha_slider, component_property="value"),
-    dash.Input(aspectratio_slider, component_property="value"),
-    dash.Input(planetmass_slider, component_property="value"),
-    dash.Input(dropdown, component_property="value"),
+    dash.State(alpha_slider, component_property="value"),
+    dash.State(aspectratio_slider, component_property="value"),
+    dash.State(planetmass_slider, component_property="value"),
+    dash.State(dropdown, component_property="value"),
     dash.Input(download_button, "n_clicks"),
     prevent_initial_call=True,
 )(my_graph.download)
