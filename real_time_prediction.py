@@ -444,19 +444,6 @@ planetmass_slider = onet_disk2D.visualization.setup_planetmass_slider(
 # ===========
 
 # ===========
-# setup the dropdown
-dropdown = dash.dcc.Dropdown(
-    options=[
-        {"label": "Surface density", "value": "sigma"},
-        {"label": "Radial velocity", "value": "v_r"},
-        {"label": "Azimuthal velocity", "value": "v_theta"},
-    ],
-    value="sigma",
-    # className=""
-)
-# ===========
-
-# ===========
 # set up the left column
 left_column = [
     alpha_text,
@@ -465,9 +452,8 @@ left_column = [
     aspectratio_slider,
     planetmass_text,
     planetmass_slider,
-    dropdown,
 ]
-left_column = dbc.Card(
+sliders = dbc.Card(
     [
         dbc.CardHeader("Input Parameters", className="fs-3"),
         dbc.CardBody(
@@ -475,9 +461,28 @@ left_column = dbc.Card(
         ),
     ],
     # prevent left column and right column overlap on small screen
-    className="text-body mb-4 mb-lg-0",
+    className="text-body mb-4 mb-lg-2",
 )
 # ===========
+
+# ===========
+# setup the dropdown
+dropdown = dash.dcc.Dropdown(
+    options=[
+        {"label": "Surface density", "value": "sigma"},
+        {"label": "Radial velocity", "value": "v_r"},
+        {"label": "Azimuthal velocity", "value": "v_theta"},
+    ],
+    value="sigma",
+)
+dropdown_card = dbc.Card(
+    [
+        dbc.CardHeader("Select quantity to view", className="fs-3"),
+        dbc.CardBody(dropdown),
+    ],
+)
+# ===========
+
 
 vmin = {
     "sigma": -2,
@@ -501,7 +506,7 @@ graph = dash.html.Img(
 content_row = dbc.Row(
     [
         dbc.Col(
-            left_column,
+            [sliders, dropdown_card],
             xs=10,
             sm=10,
             md=10,
@@ -570,7 +575,7 @@ if __name__ == "__main__":
     # See https://help.pythonanywhere.com/pages/Flask/#do-not-use-apprun
     # run server
     # app.run(debug=True)
-    app.run(debug=False, port=8052)
+    app.run(debug=True, port=8052)
 
 # end timer
 print(f"Initialize app takes {time.perf_counter() - start:.2f} seconds")

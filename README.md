@@ -35,7 +35,7 @@ pip install -r requirements.txt
 
 ### Web app demo
 
-```commandline
+```
 python real_time_prediction.py \
 --sigma_run_dir trained_network/single_log_sigma \
 --v_r_run_dir trained_network/single_v_r \
@@ -46,7 +46,7 @@ And open the link you get from the terminal in your browser.
 
 ### Predicting the solutions of a batch of disk-planet systems
 
-```commandline
+```
 python -m onet_disk2D.predict \
 --run_dir trained_network/single_log_sigma \
 --parameter_file parameter_examples.csv \
