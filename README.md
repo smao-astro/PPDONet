@@ -3,6 +3,10 @@
 We develop a tool, which we name Protoplanetary Disk Operator Network (PPDONet), that can predict the solution of disk-planet interactions in protoplanetary disks in real-time. We base our tool on Deep Operator Networks (DeepONets), a class of neural networks capable of learning non-linear operators to represent deterministic and stochastic differential equations.
 With PPDONet we map three scalar parameters in a disk-planet system -- the Shakura & Sunyaev viscosity $\alpha$, the disk aspect ratio $h_0$, and the planet-star mass ratio $q$ -- to steady-state solutions of the disk surface density, radial velocity, and azimuthal velocity.  We demonstrate the accuracy of the PPDONet solutions using a comprehensive set of tests. Our tool is able to predict the outcome of disk-planet interaction for one system in less than a second on a laptop, speeding the calculation by many orders of magnitude compared with conventional numerical solvers. A public implementation of PPDONet is available at \url{https://github.com/smao-astro/PPDONet}.
 
+## Web app demo
+
+We have developed a web app demo for PPDONet. Please visit [this link](https://ppdonet-1.herokuapp.com) to try it out!
+
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
