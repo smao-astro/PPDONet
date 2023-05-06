@@ -252,26 +252,21 @@ class Graph:
         # reshape
         predict = predict.reshape(self.nxy, self.nxy)
         if phy_variable == "sigma":
-            # normalize by initial condition
+            # prediction is in logarithmic scale
+            # normalize by initial condition: Sigma/r**-0.5
             predict = predict + 0.5 * np.log10(self.r)
         elif phy_variable == "v_r":
-            cs = aspectratio
             # remove initial condition (background) to get perturbed v_r
             predict -= (
                 -1.5 * alpha * aspectratio**2 * np.sqrt((1.0 + planetmass) / self.r)
             )
-            # normalize by sound speed
-            predict = predict / cs
         elif phy_variable == "v_theta":
-            cs = aspectratio
             # convert to non-rotating frame
             predict += self.r
             # remove initial condition (background) to get perturbed v_theta
             predict -= np.sqrt(1 - 1.5 * aspectratio**2) * np.sqrt(
                 (1.0 + planetmass) / self.r
             )
-            # normalize by sound speed
-            predict = predict / cs
         else:
             raise ValueError(f"Unknown phy_variable: {phy_variable}")
         # mask
@@ -281,7 +276,10 @@ class Graph:
     @timer
     def update(self, alpha, aspectratio, planetmass, phy_variable):
         predict = self.predict(alpha, aspectratio, planetmass, phy_variable)
-
+        if phy_variable in ["v_r", "v_theta"]:
+            # normalize by sound speed
+            cs = aspectratio
+            predict = predict / cs
         fig = plt.figure(layout="constrained")
         plt.imshow(
             predict,
@@ -307,6 +305,12 @@ class Graph:
 
     def write_fits(self, bytes_io, alpha, aspectratio, planetmass, phy_variable):
         predict = self.predict(alpha, aspectratio, planetmass, phy_variable)
+        if phy_variable == "sigma":
+            # convert back to linear scale
+            predict = 10**predict
+        # if phy_variable in ["v_r", "v_theta"]:
+        # do not normalize by sound speed since that is what the user wants
+
         primary_hdu = fits_module.PrimaryHDU()
         # write some info to the header
         primary_hdu.header["ALPHA"] = (10**alpha, "Alpha viscosity")
@@ -496,9 +500,9 @@ sliders = dbc.Card(
 # setup the dropdown
 dropdown = dash.dcc.Dropdown(
     options=[
-        {"label": "Surface density", "value": "sigma"},
-        {"label": "Radial velocity", "value": "v_r"},
-        {"label": "Azimuthal velocity", "value": "v_theta"},
+        {"label": "surface density", "value": "sigma"},
+        {"label": "perturbed radial velocity", "value": "v_r"},
+        {"label": "perturbed azimuthal velocity", "value": "v_theta"},
     ],
     value="sigma",
 )
