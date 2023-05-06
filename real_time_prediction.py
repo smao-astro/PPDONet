@@ -49,6 +49,7 @@ plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
 plt.rc("figure", titlesize=BIGGER_SIZE)
 # font family
 plt.rcParams["font.family"] = "Times New Roman"
+plt.rcParams['text.usetex'] = True
 
 
 def get_parser():
@@ -299,6 +300,13 @@ class Graph:
         plt.title(self.fig_title[phy_variable], fontsize=BIGGER_SIZE)
         cbar = plt.colorbar(ticks=self.colorbar_ticks[phy_variable])
         cbar.ax.set_yticklabels(self.colorbar_ticktext[phy_variable])
+        if phy_variable == "sigma":
+            title = r"$\Sigma_0$"
+        elif phy_variable in ["v_r", "v_theta"]:
+            title = r"$c_s$"
+        else:
+            raise ValueError(f"Unknown phy_variable: {phy_variable}")
+        cbar.ax.set_title(title, fontdict={"fontsize": MEDIUM_SIZE})
 
         # Convert the Matplotlib figure to an image URI and return it
         return onet_disk2D.visualization.mpl_to_uri(fig)
