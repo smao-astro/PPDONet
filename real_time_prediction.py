@@ -306,7 +306,7 @@ class Graph:
             title = "cs"
         else:
             raise ValueError(f"Unknown phy_variable: {phy_variable}")
-        cbar.ax.set_title(title, fontdict={"fontsize": MEDIUM_SIZE})
+        cbar.ax.set_title(title, fontdict={"fontsize": SMALL_SIZE})
 
         # Convert the Matplotlib figure to an image URI and return it
         return onet_disk2D.visualization.mpl_to_uri(fig)
