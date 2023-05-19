@@ -7,6 +7,8 @@ With PPDONet we map three scalar parameters in a disk-planet system -- the Shaku
 
 We have developed a web app demo for PPDONet. Please visit [this link](https://ppdonet-1.herokuapp.com) to try it out!
 
+![](https://github.com/smao-astro/PPDONet/blob/master/webapp.gif)
+
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
