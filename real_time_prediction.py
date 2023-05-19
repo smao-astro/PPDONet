@@ -297,7 +297,7 @@ class Graph:
         )
         plt.xlabel("X (Planet Radius)")
         plt.ylabel("Y (Planet Radius)")
-        plt.title(self.fig_title[phy_variable], fontsize=BIGGER_SIZE)
+        plt.title(self.fig_title[phy_variable], fontsize=MEDIUM_SIZE)
         cbar = plt.colorbar(ticks=self.colorbar_ticks[phy_variable])
         cbar.ax.set_yticklabels(self.colorbar_ticktext[phy_variable])
         if phy_variable == "sigma":
