@@ -1,9 +1,9 @@
 astropy>=5.2.2
-jax>=0.4.6
-jaxlib>=0.4.6
+jax>=0.4.17
+jaxlib>=0.4.17
 dm-haiku>=0.0.9
 chex>=0.1.7
-optax==0.1.2
+optax>=0.1.8
 xarray==2022.3.0
 PyYAML==6.0
 matplotlib==3.7.0
